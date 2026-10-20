@@ -1,0 +1,128 @@
+﻿table,column,type,key,not_null,sql_definition
+branches,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+branches,name,varchar(160),,True,"varchar(160) NOT NULL UNIQUE, address text NOT NULL, city varchar(100) NOT NULL"
+branches,phone,"varchar(25), checkin_time time",,True,"varchar(25), checkin_time time NOT NULL DEFAULT '14:00', checkout_time time NOT NULL DEFAULT '12:00'"
+branches,timezone,varchar(64),,True,"varchar(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh', active boolean NOT NULL DEFAULT true"
+branches,created_at,timestamptz,,True,"timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz"
+roles,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+roles,code,varchar(30),,True,"varchar(30) NOT NULL UNIQUE, name varchar(100) NOT NULL"
+roles,description,text,,False,text
+users,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+users,email,varchar(254),,True,"varchar(254) NOT NULL UNIQUE, full_name varchar(160) NOT NULL, phone varchar(25)"
+users,password_hash,text,FK,True,"text NOT NULL, role_id bigint NOT NULL REFERENCES roles(id)"
+users,branch_id,bigint,FK,True,"bigint REFERENCES branches(id), active boolean NOT NULL DEFAULT true"
+users,email_verified_at,"timestamptz, failed_login_count integer",,True,"timestamptz, failed_login_count integer NOT NULL DEFAULT 0 CHECK (failed_login_count >= 0)"
+users,locked_until,"timestamptz, created_at timestamptz",,True,"timestamptz, created_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz"
+customers,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+customers,user_id,bigint,FK,True,"bigint UNIQUE REFERENCES users(id), full_name varchar(160) NOT NULL"
+customers,email,"varchar(254), phone varchar(25), nationality varchar(80), identity_document text",,False,"varchar(254), phone varchar(25), nationality varchar(80), identity_document text"
+customers,vip,boolean,,True,"boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz"
+auth_tokens,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+auth_tokens,user_id,bigint,FK,True,"bigint NOT NULL REFERENCES users(id), purpose varchar(30) NOT NULL CHECK (purpose IN ('EMAIL_VERIFY','PASSWORD_RESET','EMAIL_CHANGE'))"
+auth_tokens,token_hash,text,,True,"text NOT NULL UNIQUE, pending_email varchar(254), expires_at timestamptz NOT NULL"
+auth_tokens,used_at,"timestamptz, created_at timestamptz",,True,"timestamptz, created_at timestamptz NOT NULL DEFAULT now()"
+room_types,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+room_types,branch_id,bigint,FK,True,"bigint NOT NULL REFERENCES branches(id), name varchar(120) NOT NULL"
+room_types,description,"text, capacity integer",,True,"text, capacity integer NOT NULL CHECK (capacity > 0)"
+room_types,base_price,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK (base_price > 0)"
+room_types,area_m2,"numeric(7,2), bed_type varchar(80), amenities text",,False,"numeric(7,2), bed_type varchar(80), amenities text"
+room_types,active,boolean,,True,"boolean NOT NULL DEFAULT true, deleted_at timestamptz"
+rooms,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+rooms,branch_id,bigint,FK,True,bigint NOT NULL REFERENCES branches(id)
+rooms,room_type_id,bigint,,True,bigint NOT NULL
+rooms,room_number,varchar(20),,True,"varchar(20) NOT NULL, floor integer NOT NULL DEFAULT 1"
+rooms,occupancy,occupancy_status,,True,occupancy_status NOT NULL DEFAULT 'VACANT'
+rooms,cleaning,cleaning_status,,True,cleaning_status NOT NULL DEFAULT 'READY'
+rooms,active,boolean,,True,"boolean NOT NULL DEFAULT true, deleted_at timestamptz, version integer NOT NULL DEFAULT 0"
+pricing_rules,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+pricing_rules,room_type_id,bigint,FK,True,"bigint NOT NULL REFERENCES room_types(id), name varchar(140) NOT NULL"
+pricing_rules,starts_on,date,,True,"date NOT NULL, ends_on date NOT NULL"
+pricing_rules,priority,integer,,True,"integer NOT NULL DEFAULT 0, nightly_price numeric(14,2) NOT NULL CHECK(nightly_price > 0)"
+pricing_rules,active,boolean,,True,"boolean NOT NULL DEFAULT true, CHECK(ends_on >= starts_on)"
+promotions,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, code varchar(40) NOT NULL UNIQUE"
+promotions,name,varchar(150),,True,"varchar(150) NOT NULL, kind varchar(12) NOT NULL CHECK(kind IN ('PERCENT','FIXED'))"
+promotions,amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(amount > 0), max_discount numeric(14,2)"
+promotions,min_order,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0 CHECK(min_order >= 0), min_nights integer NOT NULL DEFAULT 1 CHECK(min_nights > 0)"
+promotions,starts_at,timestamptz,,True,"timestamptz NOT NULL, ends_at timestamptz NOT NULL"
+promotions,max_uses,"integer, per_customer_limit integer, active boolean",,True,"integer, per_customer_limit integer, active boolean NOT NULL DEFAULT true"
+reservations,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, code varchar(40) NOT NULL UNIQUE"
+reservations,branch_id,bigint,FK,True,"bigint NOT NULL REFERENCES branches(id), customer_id bigint NOT NULL REFERENCES customers(id)"
+reservations,check_in,date,,True,"date NOT NULL, check_out date NOT NULL"
+reservations,status,reservation_status,,True,reservation_status NOT NULL DEFAULT 'PENDING_PAYMENT'
+reservations,hold_expires_at,"timestamptz, book_channel varchar(12)",,True,"timestamptz, book_channel varchar(12) NOT NULL DEFAULT 'ONLINE' CHECK(book_channel IN ('ONLINE','WALK_IN'))"
+reservations,guest_count,integer,,True,integer NOT NULL DEFAULT 1 CHECK(guest_count > 0)
+reservations,room_subtotal,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0 CHECK(room_subtotal >= 0)"
+reservations,discount_amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0 CHECK(discount_amount >= 0)"
+reservations,quoted_total,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0 CHECK(quoted_total >= 0)"
+reservations,promotion_id,bigint,FK,False,"bigint REFERENCES promotions(id), special_requests text"
+reservations,actual_checkin,"timestamptz, actual_checkout timestamptz",,False,"timestamptz, actual_checkout timestamptz"
+reservations,created_by,bigint,FK,True,"bigint REFERENCES users(id), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()"
+reservations,version,integer,,True,"integer NOT NULL DEFAULT 0, CHECK(check_out > check_in)"
+reservation_details,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+reservation_details,reservation_id,bigint,FK,True,bigint NOT NULL REFERENCES reservations(id) ON DELETE RESTRICT
+reservation_details,room_type_id,bigint,FK,True,bigint NOT NULL REFERENCES room_types(id)
+reservation_details,quantity,integer,,True,integer NOT NULL CHECK(quantity > 0)
+reservation_details,nightly_average,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(nightly_average >= 0)"
+reservation_details,subtotal,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(subtotal >= 0)"
+reservation_nights,reservation_detail_id,bigint,FK,True,bigint NOT NULL REFERENCES reservation_details(id) ON DELETE RESTRICT
+reservation_nights,room_type_id,bigint,FK,True,"bigint NOT NULL REFERENCES room_types(id), stay_date date NOT NULL"
+reservation_nights,quantity,integer,,True,integer NOT NULL CHECK(quantity > 0)
+reservation_nights,nightly_price,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(nightly_price >= 0)"
+room_assignments,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+room_assignments,reservation_detail_id,bigint,,True,"bigint NOT NULL, room_type_id bigint NOT NULL"
+room_assignments,room_id,bigint,,True,"bigint NOT NULL, assigned_at timestamptz NOT NULL DEFAULT now()"
+room_assignments,released_at,"timestamptz, arrival_at timestamptz, departure_at timestamptz",,False,"timestamptz, arrival_at timestamptz, departure_at timestamptz"
+room_assignments,reason,"text, FOREIGN KEY(reservation_detail_id,room_type_id)",FK,False,"text, FOREIGN KEY(reservation_detail_id,room_type_id) REFERENCES reservation_details(id,room_type_id)"
+room_maintenance,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, room_id bigint NOT NULL REFERENCES rooms(id)"
+room_maintenance,starts_on,date,,True,"date NOT NULL, ends_on date NOT NULL, reason text NOT NULL"
+room_maintenance,active,boolean,FK,True,"boolean NOT NULL DEFAULT true, created_by bigint REFERENCES users(id)"
+room_maintenance,created_at,timestamptz,,True,"timestamptz NOT NULL DEFAULT now(), closed_at timestamptz"
+services,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, branch_id bigint NOT NULL REFERENCES branches(id)"
+services,category,varchar(90),,True,"varchar(90) NOT NULL, name varchar(140) NOT NULL, unit varchar(30) NOT NULL DEFAULT 'lần'"
+services,current_price,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(current_price >= 0), active boolean NOT NULL DEFAULT true"
+services,deleted_at,"timestamptz,",,False,"timestamptz, UNIQUE(branch_id,category,name)"
+service_usages,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+service_usages,reservation_id,bigint,FK,True,"bigint NOT NULL REFERENCES reservations(id), service_id bigint NOT NULL REFERENCES services(id)"
+service_usages,quantity,integer,,True,"integer NOT NULL CHECK(quantity > 0), unit_price numeric(14,2) NOT NULL CHECK(unit_price >= 0)"
+service_usages,used_at,timestamptz,,True,"timestamptz NOT NULL DEFAULT now(), note text, voided_at timestamptz"
+service_usages,void_reason,"text, recorded_by bigint",FK,False,"text, recorded_by bigint REFERENCES users(id)"
+extra_charges,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, reservation_id bigint NOT NULL REFERENCES reservations(id)"
+extra_charges,description,text,,True,"text NOT NULL, amount numeric(14,2) NOT NULL CHECK(amount <> 0)"
+extra_charges,created_at,timestamptz,FK,True,"timestamptz NOT NULL DEFAULT now(), created_by bigint REFERENCES users(id)"
+promotion_usages,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+promotion_usages,promotion_id,bigint,FK,True,"bigint NOT NULL REFERENCES promotions(id), reservation_id bigint NOT NULL UNIQUE REFERENCES reservations(id)"
+promotion_usages,customer_id,bigint,FK,True,"bigint NOT NULL REFERENCES customers(id), discount_amount numeric(14,2) NOT NULL CHECK(discount_amount >= 0)"
+promotion_usages,used_at,timestamptz,,True,"timestamptz NOT NULL DEFAULT now(), reversed_at timestamptz"
+invoices,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+invoices,reservation_id,bigint,FK,True,"bigint NOT NULL UNIQUE REFERENCES reservations(id), invoice_number varchar(45) NOT NULL UNIQUE"
+invoices,room_amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(room_amount >= 0), service_amount numeric(14,2) NOT NULL CHECK(service_amount >= 0)"
+invoices,extras_amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0, discount_amount numeric(14,2) NOT NULL DEFAULT 0 CHECK(discount_amount >= 0)"
+invoices,tax_amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL DEFAULT 0 CHECK(tax_amount >= 0)"
+invoices,total,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(total >= 0), issued_at timestamptz NOT NULL DEFAULT now()"
+invoices,status,invoice_status,,True,"invoice_status NOT NULL DEFAULT 'DRAFT', closed_at timestamptz"
+invoice_lines,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, invoice_id bigint NOT NULL REFERENCES invoices(id)"
+invoice_lines,line_type,varchar(20),,True,"varchar(20) NOT NULL CHECK(line_type IN ('ROOM','SERVICE','EXTRA','DISCOUNT','TAX'))"
+invoice_lines,description,text,,True,"text NOT NULL, quantity numeric(10,2) NOT NULL CHECK(quantity > 0)"
+invoice_lines,unit_price,"numeric(14,2)",,True,"numeric(14,2) NOT NULL, amount numeric(14,2) NOT NULL"
+payments,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, reservation_id bigint NOT NULL REFERENCES reservations(id)"
+payments,invoice_id,bigint,FK,True,"bigint REFERENCES invoices(id), amount numeric(14,2) NOT NULL CHECK(amount > 0)"
+payments,method,payment_method,,True,"payment_method NOT NULL, status payment_status NOT NULL DEFAULT 'PENDING'"
+payments,obligation_key,varchar(100),,True,"varchar(100) NOT NULL UNIQUE, paid_at timestamptz"
+payments,created_at,timestamptz,FK,True,"timestamptz NOT NULL DEFAULT now(), recorded_by bigint REFERENCES users(id)"
+refunds,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+refunds,payment_id,bigint,FK,True,"bigint NOT NULL REFERENCES payments(id), reservation_id bigint NOT NULL REFERENCES reservations(id)"
+refunds,amount,"numeric(14,2)",,True,"numeric(14,2) NOT NULL CHECK(amount > 0), status varchar(20) NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','DONE','REJECTED'))"
+refunds,reason,"text, idempotency_key varchar(100)",,True,"text, idempotency_key varchar(100) NOT NULL UNIQUE, created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz"
+reviews,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, reservation_id bigint NOT NULL UNIQUE REFERENCES reservations(id)"
+reviews,room_type_id,bigint,FK,True,"bigint NOT NULL REFERENCES room_types(id), score integer NOT NULL CHECK(score BETWEEN 1 AND 5)"
+reviews,cleanliness,integer,,False,"integer CHECK(cleanliness BETWEEN 1 AND 5), service_score integer CHECK(service_score BETWEEN 1 AND 5)"
+reviews,content,"text, created_at timestamptz",,True,"text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()"
+support_requests,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+support_requests,reservation_id,bigint,FK,True,"bigint NOT NULL REFERENCES reservations(id), title varchar(180) NOT NULL, category varchar(50) NOT NULL"
+support_requests,content,text,,True,"text NOT NULL, status varchar(20) NOT NULL DEFAULT 'NEW' CHECK(status IN ('NEW','PROCESSING','RESOLVED','REOPENED'))"
+support_requests,created_at,timestamptz,,True,"timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz"
+support_replies,id,bigint GENERATED ALWAYS AS IDENTITY,PK,True,"bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, request_id bigint NOT NULL REFERENCES support_requests(id)"
+support_replies,author_user_id,bigint,FK,True,"bigint REFERENCES users(id), message text NOT NULL, created_at timestamptz NOT NULL DEFAULT now()"
+audit_logs,id,bigint GENERATED ALWAYS AS IDENTITY,PK,False,bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+audit_logs,actor_id,bigint,FK,True,"bigint REFERENCES users(id), action varchar(100) NOT NULL, entity_name varchar(80) NOT NULL"
+audit_logs,entity_id,"bigint, before_data jsonb, after_data jsonb, ip inet, recorded_at timestamptz",,True,"bigint, before_data jsonb, after_data jsonb, ip inet, recorded_at timestamptz NOT NULL DEFAULT now()"
