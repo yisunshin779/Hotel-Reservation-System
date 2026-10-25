@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Kế thừa cấu hình lõi từ Spring Boot -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/> 
+    </parent>
+
+    <!-- Định danh dự án Backend của bạn -->
+    <groupId>com.hotel</groupId>
+    <artifactId>hotel-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>Hotel Backend</name>
+    <description>Hệ thống đặt phòng khách sạn (HRS) - Backend API</description>
+
+    <!-- Khai báo sử dụng Java 17 (hoặc đổi thành 21 tùy môi trường máy bạn) -->
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+    <!-- Khối chứa các thư viện bạn đã nhập -->
+    <dependencies>
+        <!-- Thư viện lõi để tạo REST API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Thư viện JPA để giao tiếp với Database -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Driver kết nối MySQL -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Bổ sung: Thư viện Redisson để khóa luồng (Soft-lock) cho UC07 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>3.24.3</version>
+        </dependency>
+    </dependencies>
+
+    <!-- Plugin đóng gói mã nguồn thành file chạy (.jar) -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
