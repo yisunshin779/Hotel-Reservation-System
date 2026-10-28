@@ -209,7 +209,7 @@ BEGIN
  SELECT * INTO f FROM hotel.folio_preview(p_reservation,p_tax_rate);
  IF abs(f.balance)>0.005 THEN RAISE EXCEPTION 'Folio not settled, balance %',f.balance; END IF;
  INSERT INTO hotel.invoices(reservation_id,invoice_number,room_amount,service_amount,extras_amount,discount_amount,tax_amount,total,status,closed_at)
- VALUES(p_reservation,p_invoice_number,f.room_cost,f.service_cost,f.extra_cost,f.discount,f.tax,f.total,'CLOSED',now()) RETURNING id INTO invoice_id;
+ VALUES(p_reservation,p_invoice_number,f.room_cost,f.service_cost,f.extra_cost,f.discount,f.tax,f.total,'DRAFT',NULL) RETURNING id INTO invoice_id;
  INSERT INTO hotel.invoice_lines(invoice_id,line_type,description,quantity,unit_price,amount)
  VALUES(invoice_id,'ROOM','Room nights',1,f.room_cost,f.room_cost);
  INSERT INTO hotel.invoice_lines(invoice_id,line_type,description,quantity,unit_price,amount)
@@ -219,6 +219,7 @@ BEGIN
  SELECT invoice_id,'EXTRA',description,1,amount,amount FROM hotel.extra_charges WHERE reservation_id=p_reservation;
  IF f.discount>0 THEN INSERT INTO hotel.invoice_lines(invoice_id,line_type,description,quantity,unit_price,amount) VALUES(invoice_id,'DISCOUNT','Booking discount',1,-f.discount,-f.discount); END IF;
  IF f.tax>0 THEN INSERT INTO hotel.invoice_lines(invoice_id,line_type,description,quantity,unit_price,amount) VALUES(invoice_id,'TAX','Configured demo tax',1,f.tax,f.tax); END IF;
+ UPDATE hotel.invoices SET status='CLOSED',closed_at=now() WHERE id=invoice_id;
  UPDATE hotel.rooms SET occupancy='VACANT',cleaning='DIRTY',version=version+1
  WHERE id IN (SELECT a.room_id FROM hotel.room_assignments a JOIN hotel.reservation_details d ON d.id=a.reservation_detail_id WHERE d.reservation_id=p_reservation AND a.released_at IS NULL);
  UPDATE hotel.room_assignments SET released_at=now(),departure_at=now()
