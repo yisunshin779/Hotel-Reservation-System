@@ -1,4 +1,9 @@
 spring:
+  # KHỐI MỚI THÊM: Định hướng môi trường khởi chạy
+  profiles:
+    active: default # Khi để 'default', hệ thống dùng DB gốc của bạn ở cổng 5433. 
+                    # Đổi thành 'report-demo' khi bạn muốn chạy DB báo cáo ở cổng 5432.
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/hotel_db}
     username: ${DB_USERNAME:hotel_admin}
