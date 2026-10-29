@@ -1,8 +1,10 @@
 package com.Hotel.Module_Report.security;
 
-import java.util.*;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
