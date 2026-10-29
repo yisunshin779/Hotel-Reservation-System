@@ -1,4 +1,4 @@
-package main.java.com.Hotel;
+package com.Hotel;
 
 public class HotelSystem {
     

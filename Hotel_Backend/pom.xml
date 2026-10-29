@@ -18,9 +18,9 @@
     <name>Hotel Backend</name>
     <description>Hệ thống đặt phòng khách sạn (HRS) - Backend API</description>
 
-    <!-- Khai báo sử dụng Java 17 (hoặc đổi thành 21 tùy môi trường máy bạn) -->
+    <!-- Khai báo sử dụng Java 27 -->
     <properties>
-        <java.version>17</java.version>
+        <java.version>27</java.version>
     </properties>
 
     <!-- Khối chứa các thư viện bạn đã nhập -->

@@ -1,4 +1,4 @@
-package Hotel_Backend.Module_DatPhong;
+package com.Hotel.Module_DatPhong.entity;
 
 public class Reservation {
     
