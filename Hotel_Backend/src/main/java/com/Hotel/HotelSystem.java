@@ -7,5 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class HotelSystem {
     public static void main(String[] args) {
         SpringApplication.run(HotelSystem.class, args);
+        System.out.println("====== HỆ THỐNG HRS ĐÃ KHỞI ĐỘNG THÀNH CÔNG ======");
     }
 }
