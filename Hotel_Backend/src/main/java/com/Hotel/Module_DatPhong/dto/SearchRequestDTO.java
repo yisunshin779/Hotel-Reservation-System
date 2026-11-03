@@ -9,7 +9,7 @@ public record SearchRequestDTO(
     LocalDate ngayNhan,
     LocalDate ngayTra,
     int soNguoiLon,
-    int soTreEm,
+    int soTreEm
     // Có thể bổ sung thêm các trường tùy chọn sau này:
     // String maLoaiPhong, 
     // Double giaToiThieu,
