@@ -1,6 +1,7 @@
 package com.Hotel.Module_DatPhong.service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.redisson.api.RBucket;
@@ -112,5 +113,28 @@ public class BookingService {
         if (canceledCount > 0) {
             System.out.println("Đã tự động hủy " + canceledCount + " đơn đặt phòng quá hạn thanh toán.");
         }
+    }
+
+    /**
+     * Mô phỏng hệ thống thanh toán trả về kết quả thành công.
+     */
+    public String confirmPayment(UUID reservationId) {
+        // 1. Tìm đơn đặt phòng trong Database
+        Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã đơn đặt phòng này."));
+
+        // 2. Chốt chặn trạng thái
+        if (!"PENDING_PAYMENT".equals(reservation.getTrangThai())) {
+            throw new IllegalStateException("Đơn đặt phòng không ở trạng thái chờ thanh toán.");
+        }
+
+        // 3. Đổi trạng thái thành công
+        reservation.setTrangThai("CONFIRMED");
+        reservationRepository.save(reservation);
+
+        // 4. BƯỚC SINH TỬ: Xóa key trong Redis để chặn Cron Job quét dọn
+        String redisKey = "PAYMENT_PENDING:" + reservation.getId();
+        redissonClient.getBucket(redisKey).delete();
+
+        return "Thanh toán thành công. Đơn đặt phòng " + reservation.getId() + " đã được xác nhận!";
     }
 }
