@@ -1,9 +1,12 @@
 package com.Hotel.Module_DatPhong.service;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
+import org.redisson.api.RBucket;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,7 +79,11 @@ public class BookingService {
 
             reservationRepository.save(reservation);
 
-            // TODO: Đẩy 1 key vào Redis với TTL 900 giây (15 phút) để tự động hủy đơn nếu không thanh toán
+            // 5. Đẩy key vào Redis với TTL 15 phút (900 giây)
+            String redisKey = "PAYMENT_PENDING:" + reservation.getId();
+            RBucket<String> paymentBucket = redissonClient.getBucket(redisKey);
+            paymentBucket.set("AWAITING_PAYMENT", 15, TimeUnit.MINUTES);
+
             return reservation.getId().toString();
 
         } catch (InterruptedException e) {
@@ -87,6 +94,23 @@ public class BookingService {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
+        }
+    }
+    /**
+     * Tự động quét và hủy các đơn chưa thanh toán quá 15 phút.
+     * Chạy ngầm định kỳ mỗi 60,000 mili-giây (1 phút).
+     */
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void cleanUpExpiredReservations() {
+        // Tính toán mốc thời gian của 15 phút trước
+        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(15);
+        
+        // Kích hoạt transaction xóa các bản ghi quá hạn
+        int canceledCount = reservationRepository.cancelExpiredReservations(cutoffTime);
+        
+        if (canceledCount > 0) {
+            System.out.println("Đã tự động hủy " + canceledCount + " đơn đặt phòng quá hạn thanh toán.");
         }
     }
 }

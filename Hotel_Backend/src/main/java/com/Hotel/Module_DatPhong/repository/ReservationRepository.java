@@ -1,8 +1,10 @@
 package com.Hotel.Module_DatPhong.repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -23,4 +25,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
         @Param("ngayTra") LocalDate ngayTra
     );
 
+    @Query("SELECT rt.tongSoPhong FROM RoomType rt WHERE rt.id = :maLoai")
+    Integer getTotalRoomsByMaLoai(@Param("maLoai") String maLoai);
+
+    @Modifying
+    @Query("UPDATE Reservation r SET r.trangThai = 'CANCELLED' WHERE r.trangThai = 'PENDING_PAYMENT' AND r.thoiGianTao <= :cutoffTime")
+    int cancelExpiredReservations(@Param("cutoffTime") LocalDateTime cutoffTime);
 }
