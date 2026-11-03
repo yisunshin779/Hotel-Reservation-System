@@ -2,19 +2,23 @@ package com.Hotel.Module_DatPhong.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "reservation") // Thay đổi tên này cho khớp chính xác với file 01_schema.sql của bạn
+@Table(name = "reservation") 
 public class Reservation {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
-    private String id; // Sử dụng UUID làm khóa chính để tăng tính bảo mật cho đơn đặt phòng
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id; // Chuyển sang kiểu UUID và để Spring Boot tự động sinh mã
 
     @Column(name = "ma_loai_phong", nullable = false)
     private String maLoaiPhong;
@@ -29,18 +33,17 @@ public class Reservation {
     private LocalDate ngayTra;
 
     @Column(name = "trang_thai", length = 50, nullable = false)
-    private String trangThai; // Lưu các giá trị: PENDING_PAYMENT, CONFIRMED, CHECKED_IN
+    private String trangThai; 
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    // Đổi tên biến từ createdAt thành thoiGianTao để khớp với BookingService
+    @Column(name = "thoi_gian_tao", nullable = false)
+    private LocalDateTime thoiGianTao;
 
-    // Các hàm Constructor (Khởi tạo)
     public Reservation() {
     }
 
-    // Các hàm Getters và Setters bắt buộc để Spring Boot thao tác với dữ liệu
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
 
     public String getMaLoaiPhong() { return maLoaiPhong; }
     public void setMaLoaiPhong(String maLoaiPhong) { this.maLoaiPhong = maLoaiPhong; }
@@ -57,6 +60,6 @@ public class Reservation {
     public String getTrangThai() { return trangThai; }
     public void setTrangThai(String trangThai) { this.trangThai = trangThai; }
     
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getThoiGianTao() { return thoiGianTao; }
+    public void setThoiGianTao(LocalDateTime thoiGianTao) { this.thoiGianTao = thoiGianTao; }
 }
