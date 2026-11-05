@@ -8,6 +8,8 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import RoomMapPage from './pages/dashboard/RoomMapPage'
 import ReservationsPage from './pages/dashboard/ReservationsPage'
 import ReportsPage from './pages/dashboard/ReportsPage'
+import BookingPage from './BookingPage'
+import PaymentPage from './PaymentPage'
 
 export default function App() {
   return (
@@ -16,7 +18,9 @@ export default function App() {
         <Route index element={<SearchPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route element={<RequireRole roles={['guest']} />}>
-          <Route path="my-bookings" element={<MyBookingsPage />} />
+            <Route path="book" element={<BookingPage />} />
+            <Route path="pay/:id" element={<PaymentPage />} />
+            <Route path="my-bookings" element={<MyBookingsPage />} />
         </Route>
       </Route>
 
@@ -33,5 +37,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+
+  
   )
 }

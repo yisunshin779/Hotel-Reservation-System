@@ -1,6 +1,6 @@
+import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation } from '../types'
 import { api } from './client'
 import { nightsBetween } from '../lib'
-import type { User, Role, Branch, RoomType, SearchParams, Availability } from '../types'
 
 const USE_MOCK = true // đổi thành false khi backend có API thật
 
@@ -70,5 +70,73 @@ export const SearchApi = {
         }))
     }
     return (await api.get('/rooms/availability', { params: p })).data
+  },
+}
+
+// ---------- Đặt phòng ----------
+const KEY = 'hrs-mock-reservations'
+const loadRes = (): Reservation[] => {
+  const list: Reservation[] = JSON.parse(localStorage.getItem(KEY) ?? '[]')
+  // Đơn Pending quá hạn giữ phòng thì chuyển thành Expired
+  return list.map((r) =>
+    r.status === 'Pending' && r.holdExpiresAt && +new Date(r.holdExpiresAt) < Date.now()
+      ? { ...r, status: 'Expired' as const }
+      : r
+  )
+}
+const saveRes = (list: Reservation[]) => localStorage.setItem(KEY, JSON.stringify(list))
+
+export const BookingApi = {
+  async create(b: CreateReservation): Promise<Reservation> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 500))
+      const rt = MOCK_ROOM_TYPES.find((x) => x.type.roomTypeId === b.roomTypeId)
+      if (!rt) throw new Error('Hạng phòng không tồn tại.')
+      let total = totalPrice(rt.type.basePrice, b.checkIn, b.checkOut, b.quantity)
+      if (b.promoCode) {
+        if (b.promoCode !== 'HELLO10') throw new Error('Mã khuyến mãi không hợp lệ hoặc đã hết hạn.')
+        total = Math.round(total * 0.9)
+      }
+      const res: Reservation = {
+        reservationId: crypto.randomUUID(),
+        code: 'HRS-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        guestName: b.guestName,
+        roomTypeName: rt.type.name,
+        checkInDate: b.checkIn,
+        checkOutDate: b.checkOut,
+        totalAmount: total,
+        paidAmount: 0,
+        status: 'Pending',
+        holdExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      }
+      saveRes([res, ...loadRes()])
+      return res
+    }
+    return (await api.post('/reservations', b)).data
+  },
+
+  async get(id: string): Promise<Reservation> {
+    if (USE_MOCK) {
+      const r = loadRes().find((x) => x.reservationId === id)
+      if (!r) throw new Error('Không tìm thấy đơn đặt phòng.')
+      return r
+    }
+    return (await api.get(`/reservations/${id}`)).data
+  },
+
+  async pay(id: string, method: 'QR' | 'CASH'): Promise<void> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 600))
+      const list = loadRes()
+      const r = list.find((x) => x.reservationId === id)
+      if (!r) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (r.status === 'Expired') throw new Error('Đơn đã hết hạn giữ phòng.')
+      r.status = 'Confirmed'
+      r.holdExpiresAt = undefined
+      r.paidAmount = method === 'QR' ? r.totalAmount : 0
+      saveRes(list)
+      return
+    }
+    await api.post(`/reservations/${id}/payments`, { method })
   },
 }

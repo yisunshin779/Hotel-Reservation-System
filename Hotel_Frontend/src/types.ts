@@ -62,3 +62,15 @@ export interface Availability {
   available: number
   total: number
 }
+
+export interface CreateReservation {
+  branchId: string
+  roomTypeId: string
+  quantity: number
+  checkIn: string
+  checkOut: string
+  guestName: string
+  phone: string
+  note?: string
+  promoCode?: string
+}
