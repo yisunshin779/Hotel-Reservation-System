@@ -47,3 +47,18 @@ export interface Reservation {
   status: ReservationStatus;
   holdExpiresAt?: string;
 }
+
+export interface SearchParams {
+  branchId: string
+  checkIn: string
+  checkOut: string
+  adults: number
+  children: number
+  rooms: number
+}
+
+export interface Availability {
+  roomType: RoomType
+  available: number
+  total: number
+}

@@ -23,3 +23,20 @@ nav a.active { color: var(--pri); font-weight: 600; }
   background: var(--card); border-right: 1px solid var(--line); }
 .dash aside a.active { color: var(--pri); font-weight: 600; }
 @media (max-width: 700px) { .dash { grid-template-columns: 1fr; } }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.narrow { max-width: 420px; margin: 24px auto; display: block; }
+label { display: block; font-size: 13px; margin-bottom: 10px; opacity: .8; }
+input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+.err { color: #b42318; }
+.mut { opacity: .6; font-size: 13px; }
+.btn:disabled { opacity: .5; }
+
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; }
+select, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+.room { display: flex; gap: 14px; flex-wrap: wrap; }
+.ph { width: 200px; min-height: 120px; display: grid; place-items: center; font-size: 42px; border-radius: 10px; background: var(--line); }
+.grow { flex: 1; min-width: 220px; }
+.right { text-align: right; }
+.price { font: 700 22px Georgia, serif; color: var(--pri); }
+.tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--line); margin-right: 4px; }

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import PublicLayout from './layouts/PublicLayout'
 import DashboardLayout from './layouts/DashboardLayout'
+import RequireRole from './components/RequireRole'
 import SearchPage from './pages/SearchPage'
 import LoginPage from './pages/LoginPage'
 import MyBookingsPage from './pages/MyBookingsPage'
@@ -14,14 +15,20 @@ export default function App() {
       <Route element={<PublicLayout />}>
         <Route index element={<SearchPage />} />
         <Route path="login" element={<LoginPage />} />
-        <Route path="my-bookings" element={<MyBookingsPage />} />
+        <Route element={<RequireRole roles={['guest']} />}>
+          <Route path="my-bookings" element={<MyBookingsPage />} />
+        </Route>
       </Route>
 
-      <Route path="dashboard" element={<DashboardLayout />}>
-        <Route index element={<Navigate to="rooms" replace />} />
-        <Route path="rooms" element={<RoomMapPage />} />
-        <Route path="reservations" element={<ReservationsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+      <Route element={<RequireRole roles={['receptionist', 'manager', 'admin']} />}>
+        <Route path="dashboard" element={<DashboardLayout />}>
+          <Route index element={<Navigate to="rooms" replace />} />
+          <Route path="rooms" element={<RoomMapPage />} />
+          <Route path="reservations" element={<ReservationsPage />} />
+          <Route element={<RequireRole roles={['manager', 'admin']} />}>
+            <Route path="reports" element={<ReportsPage />} />
+          </Route>
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
