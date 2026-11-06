@@ -1,9 +1,12 @@
 package com.Hotel.Module_DatPhong.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Hotel.Module_DatPhong.dto.BookingRequestDTO;
+import com.Hotel.Module_DatPhong.dto.SearchRequestDTO;
+import com.Hotel.Module_DatPhong.entity.RoomType;
 import com.Hotel.Module_DatPhong.service.BookingService;
 
 @RestController
@@ -23,6 +28,22 @@ public class BookingController {
     public BookingController(BookingService bookingService) {
         this.bookingService = bookingService;
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchRooms(@ModelAttribute SearchRequestDTO request) {
+        try {
+            List<RoomType> availableRooms = bookingService.searchAvailableRooms(request);
+            
+            if (availableRooms.isEmpty()) {
+                return ResponseEntity.ok("Không có phòng trống phù hợp với khoảng thời gian này.");
+            }
+            return ResponseEntity.ok(availableRooms);
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/hold")
     public ResponseEntity<?> holdRoom(@RequestBody BookingRequestDTO request) {
         try {

@@ -1,6 +1,7 @@
 package com.Hotel.Module_DatPhong.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -12,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.Hotel.Module_DatPhong.dto.BookingRequestDTO;
+import com.Hotel.Module_DatPhong.dto.SearchRequestDTO;
 import com.Hotel.Module_DatPhong.entity.Reservation;
+import com.Hotel.Module_DatPhong.entity.RoomType;
 import com.Hotel.Module_DatPhong.repository.ReservationRepository;
 import com.Hotel.Module_DatPhong.repository.RoomTypeRepository;
 
@@ -136,5 +139,11 @@ public class BookingService {
         redissonClient.getBucket(redisKey).delete();
 
         return "Thanh toán thành công. Đơn đặt phòng " + reservation.getId() + " đã được xác nhận!";
+    }
+
+    public List<RoomType> searchAvailableRooms(SearchRequestDTO request) {
+        // Tầng DTO đã tự động chặn các request có ngày trả < ngày nhận
+        // Ở đây chỉ cần gọi thẳng xuống Repository
+        return roomTypeRepository.findAvailableRoomTypes(request.ngayNhan(), request.ngayTra());
     }
 }
