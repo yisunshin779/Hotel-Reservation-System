@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: hrs-postgres
+    environment:
+      POSTGRES_USER: hotel_admin
+      POSTGRES_PASSWORD: local_development_only
+      POSTGRES_DB: hotel_db
+    ports:
+      - "5433:5432" 
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: hrs-redis
+    ports:
+      - "6379:6379"
+    restart: always
