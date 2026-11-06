@@ -10,6 +10,7 @@ import ReservationsPage from './pages/dashboard/ReservationsPage'
 import ReportsPage from './pages/dashboard/ReportsPage'
 import BookingPage from './BookingPage'
 import PaymentPage from './PaymentPage'
+import PricingPage from './pages/dashboard/PricingPage'
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="reservations" element={<ReservationsPage />} />
           <Route element={<RequireRole roles={['manager', 'admin']} />}>
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="pricing" element={<PricingPage />} />
           </Route>
         </Route>
       </Route>

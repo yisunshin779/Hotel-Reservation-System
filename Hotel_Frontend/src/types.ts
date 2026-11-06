@@ -46,6 +46,7 @@ export interface Reservation {
   paidAmount: number;
   status: ReservationStatus;
   holdExpiresAt?: string;
+  roomNumber?: string
 }
 
 export interface SearchParams {
@@ -73,4 +74,31 @@ export interface CreateReservation {
   phone: string
   note?: string
   promoCode?: string
+}
+
+export interface RevenuePoint {
+  date: string
+  revenue: number
+}
+
+export interface ReportSummary {
+  revenueToday: number
+  occupancy: number // phần trăm, 0-100
+  newBookings: number
+  cancelled: number
+  series: RevenuePoint[]
+}
+
+export interface Promotion {
+  code: string
+  percent: number
+  validTo: string
+}
+
+export interface PriceRow {
+  roomTypeId: string
+  name: string
+  normal: number
+  weekend: number
+  holiday: number
 }

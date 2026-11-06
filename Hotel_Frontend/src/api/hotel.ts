@@ -1,6 +1,6 @@
-import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation } from '../types'
+import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow } from '../types'
 import { api } from './client'
-import { nightsBetween } from '../lib'
+import { nightsBetween, today } from '../lib'
 
 const USE_MOCK = true // đổi thành false khi backend có API thật
 
@@ -94,8 +94,9 @@ export const BookingApi = {
       if (!rt) throw new Error('Hạng phòng không tồn tại.')
       let total = totalPrice(rt.type.basePrice, b.checkIn, b.checkOut, b.quantity)
       if (b.promoCode) {
-        if (b.promoCode !== 'HELLO10') throw new Error('Mã khuyến mãi không hợp lệ hoặc đã hết hạn.')
-        total = Math.round(total * 0.9)
+        const promo = loadPromos().find((p) => p.code === b.promoCode && p.validTo >= today())
+        if (!promo) throw new Error('Mã khuyến mãi không hợp lệ hoặc đã hết hạn.')
+        total = Math.round((total * (100 - promo.percent)) / 100)
       }
       const res: Reservation = {
         reservationId: crypto.randomUUID(),
@@ -138,5 +139,194 @@ export const BookingApi = {
       return
     }
     await api.post(`/reservations/${id}/payments`, { method })
+  },
+
+    async mine(): Promise<Reservation[]> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 300))
+      return loadRes()
+    }
+    return (await api.get('/reservations/me')).data
+  },
+
+  async cancel(id: string): Promise<void> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 400))
+      const list = loadRes()
+      const r = list.find((x) => x.reservationId === id)
+      if (!r) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (r.status !== 'Pending' && r.status !== 'Confirmed') {
+        throw new Error('Đơn này không thể hủy.')
+      }
+      r.status = 'Cancelled'
+      saveRes(list)
+      return
+    }
+    await api.post(`/reservations/${id}/cancel`)
+  },
+}
+
+// ---------- Lễ tân: phòng ----------
+const ROOM_KEY = 'hrs-mock-rooms'
+const loadRooms = (): Room[] => {
+  const raw = localStorage.getItem(ROOM_KEY)
+  if (raw) return JSON.parse(raw)
+  const rooms: Room[] = []
+  const add = (from: number, count: number, type: string) => {
+    for (let i = 0; i < count; i++) {
+      rooms.push({ roomId: String(from + i), roomNumber: String(from + i), status: 'Available', roomTypeName: type })
+    }
+  }
+  add(101, 10, 'Standard')
+  add(201, 8, 'Deluxe')
+  add(301, 2, 'Suite')
+  localStorage.setItem(ROOM_KEY, JSON.stringify(rooms))
+  return rooms
+}
+const saveRooms = (list: Room[]) => localStorage.setItem(ROOM_KEY, JSON.stringify(list))
+
+export const RoomApi = {
+  async list(): Promise<Room[]> {
+    if (USE_MOCK) return loadRooms()
+    return (await api.get('/staff/rooms')).data
+  },
+  async setStatus(id: string, status: RoomStatus): Promise<void> {
+    if (USE_MOCK) {
+      const rooms = loadRooms()
+      const r = rooms.find((x) => x.roomId === id)
+      if (!r) throw new Error('Không tìm thấy phòng.')
+      r.status = status
+      saveRooms(rooms)
+      return
+    }
+    await api.patch(`/staff/rooms/${id}/status`, { status })
+  },
+}
+
+// ---------- Lễ tân: đơn đặt phòng ----------
+export const StaffBookingApi = {
+  async list(q: string): Promise<Reservation[]> {
+    if (USE_MOCK) {
+      const s = q.trim().toLowerCase()
+      return loadRes().filter((r) => (r.code + ' ' + r.guestName).toLowerCase().includes(s))
+    }
+    return (await api.get('/staff/reservations', { params: { q, size: 20 } })).data
+  },
+
+  async checkIn(id: string, idNumber: string): Promise<void> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 400))
+      if (idNumber.trim().length < 9) throw new Error('Số giấy tờ tùy thân không hợp lệ.')
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === id)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'Confirmed') throw new Error('Chỉ đơn đã xác nhận mới check-in được.')
+      const rooms = loadRooms()
+      const room = rooms.find((x) => x.status === 'Available' && x.roomTypeName === res.roomTypeName)
+      if (!room) throw new Error(`Không còn phòng ${res.roomTypeName} sẵn sàng.`)
+      room.status = 'Occupied'
+      res.status = 'CheckedIn'
+      res.roomNumber = room.roomNumber
+      saveRooms(rooms)
+      saveRes(list)
+      return
+    }
+    await api.post(`/staff/reservations/${id}/check-in`, { idNumber })
+  },
+
+  async checkOut(id: string): Promise<void> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 400))
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === id)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'CheckedIn') throw new Error('Đơn này chưa check-in.')
+      const rooms = loadRooms()
+      const room = rooms.find((x) => x.roomNumber === res.roomNumber)
+      if (room) room.status = 'Dirty'
+      res.status = 'CheckedOut'
+      res.paidAmount = res.totalAmount // thu nốt phần còn lại tại quầy
+      saveRooms(rooms)
+      saveRes(list)
+      return
+    }
+    await api.post(`/staff/reservations/${id}/check-out`)
+  },
+}
+
+// ---------- Quản trị: khuyến mãi ----------
+const PROMO_KEY = 'hrs-mock-promos'
+const loadPromos = (): Promotion[] => {
+  const raw = localStorage.getItem(PROMO_KEY)
+  if (raw) return JSON.parse(raw)
+  const def: Promotion[] = [{ code: 'HELLO10', percent: 10, validTo: '2099-12-31' }]
+  localStorage.setItem(PROMO_KEY, JSON.stringify(def))
+  return def
+}
+const savePromos = (list: Promotion[]) => localStorage.setItem(PROMO_KEY, JSON.stringify(list))
+
+export const PromoApi = {
+  async list(): Promise<Promotion[]> {
+    if (USE_MOCK) return loadPromos()
+    return (await api.get('/promotions')).data
+  },
+  async create(p: Promotion): Promise<void> {
+    if (USE_MOCK) {
+      await new Promise((r) => setTimeout(r, 300))
+      const list = loadPromos()
+      if (list.some((x) => x.code === p.code)) throw new Error('Mã khuyến mãi đã tồn tại.')
+      savePromos([p, ...list])
+      return
+    }
+    await api.post('/promotions', p)
+  },
+  async remove(code: string): Promise<void> {
+    if (USE_MOCK) {
+      savePromos(loadPromos().filter((x) => x.code !== code))
+      return
+    }
+    await api.delete(`/promotions/${code}`)
+  },
+}
+
+// ---------- Quản trị: bảng giá ----------
+export const PriceApi = {
+  async list(): Promise<PriceRow[]> {
+    if (USE_MOCK) {
+      return MOCK_ROOM_TYPES.map(({ type }) => ({
+        roomTypeId: type.roomTypeId,
+        name: type.name,
+        normal: type.basePrice,
+        weekend: Math.round(type.basePrice * 1.15),
+        holiday: Math.round(type.basePrice * 1.4),
+      }))
+    }
+    return (await api.get('/pricing')).data
+  },
+}
+
+// ---------- Quản trị: báo cáo ----------
+export const ReportApi = {
+  async summary(): Promise<ReportSummary> {
+    if (USE_MOCK) {
+      const reservations = loadRes()
+      const rooms = loadRooms()
+      const revenueToday = reservations.reduce((s, r) => s + r.paidAmount, 0)
+      const base = [42, 55, 38, 61, 70, 88].map((x) => x * 1_000_000) // 6 ngày trước (số giả)
+      const series = [...base, revenueToday].map((revenue, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() - (6 - i))
+        return { date: d.toISOString().slice(0, 10), revenue }
+      })
+      const occupied = rooms.filter((r) => r.status === 'Occupied').length
+      return {
+        revenueToday,
+        occupancy: Math.round((occupied / rooms.length) * 100),
+        newBookings: reservations.length,
+        cancelled: reservations.filter((r) => r.status === 'Cancelled').length,
+        series,
+      }
+    }
+    return (await api.get('/reports/summary')).data
   },
 }

@@ -13,6 +13,7 @@ export default function DashboardLayout() {
         <NavLink to="/dashboard/rooms">Sơ đồ phòng</NavLink>
         <NavLink to="/dashboard/reservations">Đơn đặt phòng</NavLink>
         {canReport && <NavLink to="/dashboard/reports">Báo cáo</NavLink>}
+        {canReport && <NavLink to="/dashboard/pricing">Giá & khuyến mãi</NavLink>}
         <div style={{ flex: 1 }} />
         <small>{user?.fullName}</small>
         <button className="btn" onClick={() => { logout(); navigate('/login') }}>Đăng xuất</button>
