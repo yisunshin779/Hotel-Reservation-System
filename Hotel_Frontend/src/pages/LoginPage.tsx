@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -5,6 +6,7 @@ import { AuthApi } from '../api/hotel'
 import { useAuth } from '../store/auth'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -31,20 +33,20 @@ export default function LoginPage() {
 
   return (
     <form className="card narrow" onSubmit={handleSubmit}>
-      <h1>Đăng nhập</h1>
+      <h1>{t('login.title')}</h1>
       <label>
-        Email
+        {t('login.email')}
         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
       <label>
-        Mật khẩu
+        {t('login.password')}
         <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
       {error && <p className="err">{error}</p>}
       <button className="btn primary" disabled={loading}>
-        {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+        {loading ? t('login.loading') : t('login.submit')}.
       </button>
-      <p className="mut">Thử: khach@ / letan@ / admin@example.com, mật khẩu 12345678</p>
+      <p className="mut">{t('demo : khach@/letan@/admin@example.com, password:12345678')}</p>
     </form>
   )
 }

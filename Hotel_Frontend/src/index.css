@@ -70,3 +70,14 @@ a.btn { display: inline-block; }
 .bars i { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 11px; font-style: normal; }
 .bars span { position: absolute; bottom: -20px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: .6; }
 .grid.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+
+.top { flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .page { padding: 12px 10px 40px; }
+  .ph { width: 100%; min-height: 90px; }
+  .right { text-align: left; width: 100%; }
+  h1 { font-size: 22px; }
+  .dash aside { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .dash aside .logo { width: 100%; }
+  .rooms { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
