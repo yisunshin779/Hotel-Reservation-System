@@ -24,7 +24,7 @@ export default function MyBookingsPage() {
 
       {list.data?.length === 0 && (
         <div className="card">
-          Bạn chưa có đơn đặt phòng nào. <Link to="/">Tìm phòng ngay</Link>
+          Bạn chưa có đơn đặt phòng nào. <Link to="/search">Tìm phòng ngay</Link>
         </div>
       )}
 

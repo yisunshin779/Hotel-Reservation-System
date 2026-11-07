@@ -2,10 +2,10 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { BookingApi } from './api/hotel'
-import { useAuth } from './store/auth'
-import { nightsBetween, vnd } from './lib'
-import type { Availability, SearchParams } from './types'
+import { BookingApi } from '../api/hotel'
+import { useAuth } from '../store/auth'
+import { nightsBetween, vnd } from '../lib'
+import type { Availability, SearchParams } from '../types'
 
 export default function BookingPage() {
   const state = useLocation().state as { search: SearchParams; item: Availability } | null
@@ -24,8 +24,8 @@ export default function BookingPage() {
     onSuccess: (r) => navigate(`/pay/${r.reservationId}`, { replace: true }),
   })
 
-  // Vào thẳng /book mà chưa chọn phòng thì quay về trang tìm
-  if (!state) return <Navigate to="/" replace />
+  // Vào thẳng /book mà chưa chọn phòng thì quay về trang about 
+  if (!state) return <Navigate to="/search" replace />
 
   const { search, item } = state
   const phoneOk = /^0\d{9}$/.test(form.phone)

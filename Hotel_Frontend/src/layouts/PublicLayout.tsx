@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../store/auth'
 import LangSwitch from '../components/LangSwitch'
@@ -7,13 +7,23 @@ export default function PublicLayout() {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   return (
     <>
       <header className="top">
-        <Link to="/" className="logo">🏨 Sứ Hotel</Link>
+        <Link
+          to="/"
+          className="logo"
+          onClick={() => {
+            if (pathname === '/') window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+        >
+          🏨 Sứ Hotel
+        </Link>
         <nav>
-          <NavLink to="/">{t('nav.search')}</NavLink>
+          <NavLink to="/" end>{t('nav.about')}</NavLink>
+          <NavLink to="/search">{t('nav.search')}</NavLink>
           {user?.role === 'guest' && <NavLink to="/my-bookings">{t('nav.myBookings')}</NavLink>}
         </nav>
         <LangSwitch />

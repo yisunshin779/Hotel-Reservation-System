@@ -1,14 +1,21 @@
-import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AuthApi } from '../api/hotel'
 import { useAuth } from '../store/auth'
+
+const DEMOS = [
+  { label: 'Khách', email: 'khach@example.com' },
+  { label: 'Lễ tân', email: 'letan@example.com' },
+  { label: 'Quản trị', email: 'admin@example.com' },
+]
 
 export default function LoginPage() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -32,21 +39,94 @@ export default function LoginPage() {
   }
 
   return (
-    <form className="card narrow" onSubmit={handleSubmit}>
-      <h1>{t('login.title')}</h1>
-      <label>
-        {t('login.email')}
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-      </label>
-      <label>
-        {t('login.password')}
-        <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
-      {error && <p className="err">{error}</p>}
-      <button className="btn primary" disabled={loading}>
-        {loading ? t('login.loading') : t('login.submit')}.
-      </button>
-      <p className="mut">{t('demo : khach@/letan@/admin@example.com, password:12345678')}</p>
-    </form>
+    <div className="auth-page">
+      <div className="bg-photo" />
+      <div className="bg-shade" />
+      {Array.from({ length: 14 }).map((_, i) => (
+        <span
+          key={i}
+          className="spark"
+          style={{
+            left: `${(i * 7 + 5) % 100}%`,
+            animationDelay: `${(i * 0.9) % 8}s`,
+            animationDuration: `${9 + (i % 5) * 2}s`,
+          }}
+        />
+      ))}
+
+      <div className="auth">
+      {/* Nửa trái: giới thiệu */}
+      <section className="auth-hero">
+        <div className="hero-img" />
+        <span className="orb o1" />
+        <span className="orb o2" />
+        <span className="orb o3" />
+
+        <div className="hero-content">
+          <div className="hero-icon">🏨</div>
+          <div className="stars">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span key={i} style={{ animationDelay: `${0.6 + i * 0.12}s` }}>★</span>
+            ))}
+          </div>
+          <h2>{t('login.slogan')}</h2>
+          <p>{t('login.sub')}</p>
+          <ul className="perks">
+            <li style={{ animationDelay: '0.5s' }}>✓ {t('login.perk1')}</li>
+            <li style={{ animationDelay: '0.7s' }}>✓ {t('login.perk2')}</li>
+            <li style={{ animationDelay: '0.9s' }}>✓ {t('login.perk3')}</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* Nửa phải: form */}
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <h1>{t('login.title')}</h1>
+
+        <label>
+          {t('login.email')}
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+
+        <label>
+          {t('login.password')}
+          <div className="pw">
+            <input
+              type={showPw ? 'text' : 'password'}
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)}>
+              {showPw ? t('login.hide') : t('login.show')}
+            </button>
+          </div>
+        </label>
+
+        {error && <p className="err shake">{error}</p>}
+
+        <button className="btn primary shine" disabled={loading}>
+          {loading ? t('login.loading') : t('login.submit')}
+        </button>
+
+        <div className="demo">
+          <span className="mut">{t('login.demo')}</span>
+          <div>
+            {DEMOS.map((d) => (
+              <button
+                type="button"
+                key={d.email}
+                className="chip"
+                onClick={() => { setEmail(d.email); setPassword('12345678') }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
   )
 }

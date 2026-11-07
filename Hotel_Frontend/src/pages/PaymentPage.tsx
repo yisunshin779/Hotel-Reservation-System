@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { BookingApi } from './api/hotel'
-import { vnd } from './lib'
+import { BookingApi } from '../api/hotel'
+import { vnd } from '../lib'
 
 export default function PaymentPage() {
   const { id = '' } = useParams()
@@ -36,7 +36,7 @@ export default function PaymentPage() {
       <div className="card narrow">
         <h1>Đơn đã hết hạn giữ phòng</h1>
         <p className="mut">Phòng đã được trả lại hệ thống. Bạn hãy tìm và đặt lại.</p>
-        <button className="btn primary" onClick={() => navigate('/')}>Tìm phòng lại</button>
+        <button className="btn primary" onClick={() => navigate('/search')}>Tìm phòng lại</button>
       </div>
     )
   }
