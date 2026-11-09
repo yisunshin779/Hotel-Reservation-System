@@ -30,6 +30,7 @@ export interface RoomType {
 
 export interface Room {
   roomId: string;
+  branchId: string;
   roomNumber: string;
   status: RoomStatus;
   roomTypeName: string;
@@ -47,6 +48,7 @@ export interface Reservation {
   status: ReservationStatus;
   holdExpiresAt?: string;
   roomNumber?: string
+  branchId?: string
 }
 
 export interface SearchParams {

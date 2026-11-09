@@ -2,15 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StaffBookingApi } from '../../api/hotel'
 import { STATUS_LABEL, vnd } from '../../lib'
+import { useAuth } from '../../store/auth'
 
 export default function ReservationsPage() {
   const [q, setQ] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+  const user = useAuth((s) => s.user)
+  const branchId = user?.role === 'receptionist' ? (user.branchId ?? 'hn') : undefined
 
   const list = useQuery({
-    queryKey: ['staff-reservations', q],
-    queryFn: () => StaffBookingApi.list(q),
+    queryKey: ['staff-reservations', q, branchId],
+    queryFn: () => StaffBookingApi.list(q, branchId),
   })
 
   const refresh = () => {

@@ -565,3 +565,25 @@ button, .btn { font-weight: 500; }
 .meter i.s3 { background: #7fae3f; }
 .meter i.s4 { background: #1d7a4d; }
 .demo-code { padding: 10px 12px; border-radius: 10px; background: #fff3d6; border: 1px dashed #d9a066; color: #5b4128; font-size: 14px; }
+
+/* ---------- Sơ đồ phòng theo chi nhánh ---------- */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab {
+  padding: 8px 16px; border-radius: 99px; cursor: pointer; font: inherit;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  transition: transform 0.15s, border-color 0.15s;
+}
+.tab:hover { transform: translateY(-2px); border-color: var(--pri); }
+.tab.on { background: var(--pri); border-color: var(--pri); color: #fff; }
+.branch-fixed { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); display: inline-block; }
+
+.fchips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 4px; }
+.fchip {
+  padding: 5px 14px; border-radius: 99px; cursor: pointer; font: inherit; font-size: 13px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+}
+.fchip.on { border-color: var(--pri); color: var(--pri); font-weight: 600; }
+
+.floor-title { margin: 20px 0 8px; font-size: 15px; opacity: 0.8; }
+.rm { gap: 3px; }
+.rm .btn { padding: 3px 8px; font-size: 12px; }

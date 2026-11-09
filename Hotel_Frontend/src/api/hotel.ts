@@ -7,7 +7,7 @@ const USE_MOCK = true // đổi thành false khi backend có API thật
 // ---------- Đăng nhập ----------
 const MOCK_USERS: Record<string, { password: string; user: User }> = {
   'khach@example.com': { password: '12345678', user: { id: '1', fullName: 'Khách hàng', email: 'khach@example.com', role: 'guest' as Role } },
-  'letan@example.com': { password: '12345678', user: { id: '2', fullName: 'Lễ tân', email: 'letan@example.com', role: 'receptionist' as Role } },
+  'letan@example.com': { password: '12345678', user: { id: '2', fullName: 'Lễ tân', email: 'letan@example.com', role: 'receptionist' as Role, branchId: 'hn' } },
   'admin@example.com': { password: '12345678', user: { id: '3', fullName: 'Quản trị', email: 'admin@example.com', role: 'admin' as Role } },
 }
 
@@ -158,6 +158,7 @@ export const BookingApi = {
       }
       const res: Reservation = {
         reservationId: crypto.randomUUID(),
+        branchId: b.branchId,
         code: 'HRS-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
         guestName: b.guestName,
         roomTypeName: rt.type.name,
@@ -224,29 +225,39 @@ export const BookingApi = {
   },
 }
 
-// ---------- Lễ tân: phòng ----------
-const ROOM_KEY = 'hrs-mock-rooms'
+// ---------- Lễ tân: phòng (3 chi nhánh, mỗi chi nhánh 60 phòng) ----------
+const ROOM_KEY = 'hrs-mock-rooms-v2'
 const loadRooms = (): Room[] => {
   const raw = localStorage.getItem(ROOM_KEY)
   if (raw) return JSON.parse(raw)
+
   const rooms: Room[] = []
-  const add = (from: number, count: number, type: string) => {
-    for (let i = 0; i < count; i++) {
-      rooms.push({ roomId: String(from + i), roomNumber: String(from + i), status: 'Available', roomTypeName: type })
+  ;['hn', 'dn', 'hcm'].forEach((branchId, bi) => {
+    for (let floor = 1; floor <= 5; floor++) {
+      for (let n = 1; n <= 12; n++) {
+        // Mỗi tầng: 6 phòng Standard, 4 phòng Deluxe, 2 phòng Suite
+        const type = n <= 6 ? 'Standard' : n <= 10 ? 'Deluxe' : 'Suite'
+        // Trạng thái ban đầu rải đều cho sinh động
+        const seed = (floor * 7 + n * 13 + bi * 5) % 10
+        const status: RoomStatus =
+          seed === 0 ? 'Maintenance' : seed <= 2 ? 'Dirty' : seed <= 5 ? 'Occupied' : 'Available'
+        const no = `${floor}${String(n).padStart(2, '0')}`
+        rooms.push({ roomId: `${branchId}-${no}`, branchId, roomNumber: no, status, roomTypeName: type })
+      }
     }
-  }
-  add(101, 10, 'Standard')
-  add(201, 8, 'Deluxe')
-  add(301, 2, 'Suite')
+  })
   localStorage.setItem(ROOM_KEY, JSON.stringify(rooms))
   return rooms
 }
 const saveRooms = (list: Room[]) => localStorage.setItem(ROOM_KEY, JSON.stringify(list))
 
 export const RoomApi = {
-  async list(): Promise<Room[]> {
-    if (USE_MOCK) return loadRooms()
-    return (await api.get('/staff/rooms')).data
+  async list(branchId?: string): Promise<Room[]> {
+    if (USE_MOCK) {
+      const all = loadRooms()
+      return branchId ? all.filter((r) => r.branchId === branchId) : all
+    }
+    return (await api.get('/staff/rooms', { params: { branchId } })).data
   },
   async setStatus(id: string, status: RoomStatus): Promise<void> {
     if (USE_MOCK) {
@@ -260,15 +271,18 @@ export const RoomApi = {
     await api.patch(`/staff/rooms/${id}/status`, { status })
   },
 }
-
 // ---------- Lễ tân: đơn đặt phòng ----------
 export const StaffBookingApi = {
-  async list(q: string): Promise<Reservation[]> {
+    async list(q: string, branchId?: string): Promise<Reservation[]> {
     if (USE_MOCK) {
       const s = q.trim().toLowerCase()
-      return loadRes().filter((r) => (r.code + ' ' + r.guestName).toLowerCase().includes(s))
+      return loadRes().filter(
+        (r) =>
+          (r.code + ' ' + r.guestName).toLowerCase().includes(s) &&
+          (!branchId || !r.branchId || r.branchId === branchId)
+      )
     }
-    return (await api.get('/staff/reservations', { params: { q, size: 20 } })).data
+    return (await api.get('/staff/reservations', { params: { q, branchId, size: 20 } })).data
   },
 
   async checkIn(id: string, idNumber: string): Promise<void> {
@@ -280,7 +294,12 @@ export const StaffBookingApi = {
       if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
       if (res.status !== 'Confirmed') throw new Error('Chỉ đơn đã xác nhận mới check-in được.')
       const rooms = loadRooms()
-      const room = rooms.find((x) => x.status === 'Available' && x.roomTypeName === res.roomTypeName)
+      const room = rooms.find(
+        (x) =>
+          x.status === 'Available' &&
+          x.roomTypeName === res.roomTypeName &&
+          (!res.branchId || x.branchId === res.branchId)
+      )
       if (!room) throw new Error(`Không còn phòng ${res.roomTypeName} sẵn sàng.`)
       room.status = 'Occupied'
       res.status = 'CheckedIn'
@@ -300,7 +319,9 @@ export const StaffBookingApi = {
       if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
       if (res.status !== 'CheckedIn') throw new Error('Đơn này chưa check-in.')
       const rooms = loadRooms()
-      const room = rooms.find((x) => x.roomNumber === res.roomNumber)
+      const room = rooms.find(
+        (x) => x.roomNumber === res.roomNumber && (!res.branchId || x.branchId === res.branchId)
+      )
       if (room) room.status = 'Dirty'
       res.status = 'CheckedOut'
       res.paidAmount = res.totalAmount // thu nốt phần còn lại tại quầy
