@@ -48,6 +48,8 @@ export interface Reservation {
   status: ReservationStatus;
   holdExpiresAt?: string;
   roomNumber?: string
+  quantity?: number
+  roomNumbers?: string[]
   branchId?: string
 }
 

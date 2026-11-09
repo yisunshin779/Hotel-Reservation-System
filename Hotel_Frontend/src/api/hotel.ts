@@ -159,6 +159,7 @@ export const BookingApi = {
       const res: Reservation = {
         reservationId: crypto.randomUUID(),
         branchId: b.branchId,
+        quantity: b.quantity,
         code: 'HRS-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
         guestName: b.guestName,
         roomTypeName: rt.type.name,
@@ -272,8 +273,22 @@ export const RoomApi = {
   },
 }
 // ---------- Lễ tân: đơn đặt phòng ----------
+// Chọn các phòng trống để gán cho một đơn: ưu tiên cùng một tầng cho khách đỡ đi lại
+function pickRooms(free: Room[], need: number): Room[] {
+  const sorted = [...free].sort((a, b) => a.roomNumber.localeCompare(b.roomNumber))
+  const byFloor = new Map<string, Room[]>()
+  sorted.forEach((r) => {
+    const floor = r.roomNumber.slice(0, -2)
+    byFloor.set(floor, [...(byFloor.get(floor) ?? []), r])
+  })
+  for (const list of byFloor.values()) {
+    if (list.length >= need) return list.slice(0, need)
+  }
+  return sorted.slice(0, need)
+}
+
 export const StaffBookingApi = {
-    async list(q: string, branchId?: string): Promise<Reservation[]> {
+  async list(q: string, branchId?: string): Promise<Reservation[]> {
     if (USE_MOCK) {
       const s = q.trim().toLowerCase()
       return loadRes().filter(
@@ -287,23 +302,31 @@ export const StaffBookingApi = {
 
   async checkIn(id: string, idNumber: string): Promise<void> {
     if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 400))
+      await wait(400)
       if (idNumber.trim().length < 9) throw new Error('Số giấy tờ tùy thân không hợp lệ.')
       const list = loadRes()
       const res = list.find((x) => x.reservationId === id)
       if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
       if (res.status !== 'Confirmed') throw new Error('Chỉ đơn đã xác nhận mới check-in được.')
+
+      const need = res.quantity ?? 1
       const rooms = loadRooms()
-      const room = rooms.find(
+      const free = rooms.filter(
         (x) =>
           x.status === 'Available' &&
           x.roomTypeName === res.roomTypeName &&
           (!res.branchId || x.branchId === res.branchId)
       )
-      if (!room) throw new Error(`Không còn phòng ${res.roomTypeName} sẵn sàng.`)
-      room.status = 'Occupied'
+      // Không đủ phòng thì không gán phòng nào, đơn vẫn giữ trạng thái cũ
+      if (free.length < need) {
+        throw new Error(`Chỉ còn ${free.length}/${need} phòng ${res.roomTypeName} sẵn sàng, chưa thể check-in đủ phòng.`)
+      }
+
+      const picked = pickRooms(free, need)
+      picked.forEach((r) => { r.status = 'Occupied' })
       res.status = 'CheckedIn'
-      res.roomNumber = room.roomNumber
+      res.roomNumbers = picked.map((r) => r.roomNumber)
+      res.roomNumber = res.roomNumbers[0]
       saveRooms(rooms)
       saveRes(list)
       return
@@ -313,16 +336,20 @@ export const StaffBookingApi = {
 
   async checkOut(id: string): Promise<void> {
     if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 400))
+      await wait(400)
       const list = loadRes()
       const res = list.find((x) => x.reservationId === id)
       if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
       if (res.status !== 'CheckedIn') throw new Error('Đơn này chưa check-in.')
+
+      // Trả lại tất cả phòng của đơn, kể cả đơn cũ chỉ có một số phòng
+      const nums = res.roomNumbers ?? (res.roomNumber ? [res.roomNumber] : [])
       const rooms = loadRooms()
-      const room = rooms.find(
-        (x) => x.roomNumber === res.roomNumber && (!res.branchId || x.branchId === res.branchId)
-      )
-      if (room) room.status = 'Dirty'
+      rooms.forEach((r) => {
+        if (nums.includes(r.roomNumber) && (!res.branchId || r.branchId === res.branchId)) {
+          r.status = 'Dirty'
+        }
+      })
       res.status = 'CheckedOut'
       res.paidAmount = res.totalAmount // thu nốt phần còn lại tại quầy
       saveRooms(rooms)

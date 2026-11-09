@@ -69,8 +69,8 @@ export default function ReservationsPage() {
                 <tr key={b.reservationId}>
                   <td>{b.code}</td>
                   <td>{b.guestName}</td>
-                  <td>{b.roomTypeName}</td>
-                  <td>{b.roomNumber ?? '—'}</td>
+                  <td>{b.roomTypeName}{(b.quantity ?? 1) > 1 ? ` × ${b.quantity}` : ''}</td>
+                  <td>{b.roomNumbers?.join(', ') ?? b.roomNumber ?? '—'}</td>
                   <td>{b.checkInDate} → {b.checkOutDate}</td>
                   <td>{vnd(b.totalAmount)}</td>
                   <td>{vnd(b.paidAmount)}</td>

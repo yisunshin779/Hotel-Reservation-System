@@ -45,7 +45,7 @@ export default function MyBookingsPage() {
               {list.data.map((b) => (
                 <tr key={b.reservationId}>
                   <td>{b.code}</td>
-                  <td>{b.roomTypeName}</td>
+                  <td>{b.roomTypeName}{(b.quantity ?? 1) > 1 ? ` × ${b.quantity}` : ''}</td>
                   <td>{b.checkInDate} → {b.checkOutDate}</td>
                   <td>{vnd(b.totalAmount)}</td>
                   <td>{STATUS_LABEL[b.status]}</td>

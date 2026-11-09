@@ -55,83 +55,79 @@ export default function LoginPage() {
       ))}
 
       <div className="auth">
-      {/* Nửa trái: giới thiệu */}
-      <section className="auth-hero">
-        <div className="hero-img" />
-        <span className="orb o1" />
-        <span className="orb o2" />
-        <span className="orb o3" />
-
-        <div className="hero-content">
-          <div className="hero-icon">🏨</div>
-          <div className="stars">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <span key={i} style={{ animationDelay: `${0.6 + i * 0.12}s` }}>★</span>
-            ))}
+        <section className="auth-hero">
+          <span className="orb o1" />
+          <span className="orb o2" />
+          <span className="orb o3" />
+          <div className="hero-content">
+            <div className="hero-icon">🏨</div>
+            <div className="stars">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span key={i} style={{ animationDelay: `${0.6 + i * 0.12}s` }}>★</span>
+              ))}
+            </div>
+            <h2>{t('Nghỉ ngơi trọn vẹn, đặt phòng dễ dàng')}</h2>
+            <p>{t('Đăng nhập để quản lý đặt phòng và nhận ưu đãi dành riêng cho bạn.')}</p>
+            <ul className="perks">
+              <li style={{ animationDelay: '0.5s' }}>✓ {t('Phòng trống cập nhật theo thời gian thực')}</li>
+              <li style={{ animationDelay: '0.7s' }}>✓ {t('Hủy miễn phí trước 48 giờ')}</li>
+              <li style={{ animationDelay: '0.9s' }}>✓ {t('Mã ưu đãi cho thành viên')}</li>
+            </ul>
           </div>
-          <h2>{t('login.slogan')}</h2>
-          <p>{t('login.sub')}</p>
-          <ul className="perks">
-            <li style={{ animationDelay: '0.5s' }}>✓ {t('login.perk1')}</li>
-            <li style={{ animationDelay: '0.7s' }}>✓ {t('login.perk2')}</li>
-            <li style={{ animationDelay: '0.9s' }}>✓ {t('login.perk3')}</li>
-          </ul>
-        </div>
-      </section>
+        </section>
 
-      {/* Nửa phải: form */}
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>{t('login.title')}</h1>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <h1>{t('Đăng nhập')}</h1>
 
-        <label>
-          {t('login.email')}
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
+          <label>
+            Email
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
 
-        <label>
-          {t('login.password')}
-          <div className="pw">
-            <input
-              type={showPw ? 'text' : 'password'}
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)}>
-              {showPw ? t('login.hide') : t('login.show')}
-            </button>
-          </div>
-        </label>
-
-        {error && <p className="err shake">{error}</p>}
-
-        <button className="btn primary shine" disabled={loading}>
-          {loading ? t('login.loading') : t('login.submit')}
-        </button>
-
-        <div className="auth-links">
-          <Link to="/forgot-password">Quên mật khẩu?</Link>
-          <Link to="/register">Tạo tài khoản</Link>
-        </div>
-
-        <div className="demo">
-          <span className="mut">{t('login.demo')}</span>
-          <div>
-            {DEMOS.map((d) => (
-              <button
-                type="button"
-                key={d.email}
-                className="chip"
-                onClick={() => { setEmail(d.email); setPassword('12345678') }}
-              >
-                {d.label}
+          <label>
+            {t('Mật khẩu')}
+            <div className="pw">
+              <input
+                type={showPw ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(!showPw)}>
+                {showPw ? t('Ẩn') : t('Hiện')}
               </button>
-            ))}
+            </div>
+          </label>
+
+          {error && <p className="err shake">{t(error)}</p>}
+
+          <button className="btn primary shine" disabled={loading}>
+            {loading ? t('Đang xử lý...') : t('Đăng nhập')}
+          </button>
+
+          <div className="auth-links">
+            <Link to="/forgot-password">{t('Quên mật khẩu?')}</Link>
+            <Link to="/register">{t('Tạo tài khoản')}</Link>
           </div>
-        </div>
-      </form>
+
+          <div className="demo">
+            <span className="mut">{t('Dùng tài khoản demo:')}</span>
+            <div>
+              {DEMOS.map((d) => (
+                <button
+                  type="button"
+                  key={d.email}
+                  className="chip"
+                  onClick={() => { setEmail(d.email); setPassword('12345678') }}
+                >
+                  {t(d.label)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
   )
 }
