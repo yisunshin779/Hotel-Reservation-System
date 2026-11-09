@@ -12,6 +12,8 @@ import RoomMapPage from './pages/dashboard/RoomMapPage'
 import ReservationsPage from './pages/dashboard/ReservationsPage'
 import ReportsPage from './pages/dashboard/ReportsPage'
 import PricingPage from './pages/dashboard/PricingPage'
+import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="search" element={<SearchPage />} />
         <Route path="about" element={<Navigate to="/" replace />} />
         <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
 
         <Route element={<RequireRole roles={['guest']} />}>
           <Route path="book" element={<BookingPage />} />

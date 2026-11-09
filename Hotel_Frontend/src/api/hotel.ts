@@ -11,16 +11,74 @@ const MOCK_USERS: Record<string, { password: string; user: User }> = {
   'admin@example.com': { password: '12345678', user: { id: '3', fullName: 'Quản trị', email: 'admin@example.com', role: 'admin' as Role } },
 }
 
+// Tài khoản đăng ký thêm được lưu trong trình duyệt, ghi đè lên tài khoản mẫu nếu trùng email
+const USERS_KEY = 'hrs-mock-users'
+const RESET_KEY = 'hrs-mock-reset'
+type StoredUser = { password: string; user: User }
+
+const loadUsers = (): Record<string, StoredUser> => ({
+  ...MOCK_USERS,
+  ...JSON.parse(localStorage.getItem(USERS_KEY) ?? '{}'),
+})
+const saveUser = (email: string, s: StoredUser) => {
+  const extra = JSON.parse(localStorage.getItem(USERS_KEY) ?? '{}')
+  extra[email] = s
+  localStorage.setItem(USERS_KEY, JSON.stringify(extra))
+}
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 export const AuthApi = {
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
     if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 400))
-      const found = MOCK_USERS[email]
+      await wait(400)
+      const found = loadUsers()[email.trim().toLowerCase()]
       if (!found || found.password !== password) throw new Error('Thông tin đăng nhập không đúng.')
       return { token: 'mock-token', user: found.user }
     }
     const res = await api.post('/auth/login', { email, password })
     return res.data
+  },
+
+  async register(b: { fullName: string; email: string; phone: string; password: string }): Promise<{ token: string; user: User }> {
+    if (USE_MOCK) {
+      await wait(500)
+      const email = b.email.trim().toLowerCase()
+      if (loadUsers()[email]) throw new Error('Email này đã được đăng ký.')
+      const user: User = { id: crypto.randomUUID(), fullName: b.fullName.trim(), email, role: 'guest' as Role }
+      saveUser(email, { password: b.password, user })
+      return { token: 'mock-token', user }
+    }
+    return (await api.post('/auth/register', b)).data
+  },
+
+  // Gửi mã khôi phục. Bản giả lập trả mã về để hiển thị thử; backend thật sẽ gửi qua email
+  async forgot(email: string): Promise<{ demoCode?: string }> {
+    if (USE_MOCK) {
+      await wait(500)
+      const mail = email.trim().toLowerCase()
+      if (!loadUsers()[mail]) return {} // không tiết lộ email có tồn tại hay không
+      const code = String(Math.floor(100000 + Math.random() * 900000))
+      localStorage.setItem(RESET_KEY, JSON.stringify({ email: mail, code, expires: Date.now() + 10 * 60 * 1000 }))
+      return { demoCode: code }
+    }
+    await api.post('/auth/forgot-password', { email })
+    return {}
+  },
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    if (USE_MOCK) {
+      await wait(500)
+      const mail = email.trim().toLowerCase()
+      const saved = JSON.parse(localStorage.getItem(RESET_KEY) ?? 'null')
+      if (!saved || saved.email !== mail || saved.code !== code.trim() || saved.expires < Date.now()) {
+        throw new Error('Mã không đúng hoặc đã hết hạn.')
+      }
+      const found = loadUsers()[mail]
+      saveUser(mail, { password: newPassword, user: found.user })
+      localStorage.removeItem(RESET_KEY)
+      return
+    }
+    await api.post('/auth/reset-password', { email, code, newPassword })
   },
 }
 

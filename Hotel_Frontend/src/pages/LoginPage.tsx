@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AuthApi } from '../api/hotel'
 import { useAuth } from '../store/auth'
@@ -109,6 +109,11 @@ export default function LoginPage() {
         <button className="btn primary shine" disabled={loading}>
           {loading ? t('login.loading') : t('login.submit')}
         </button>
+
+        <div className="auth-links">
+          <Link to="/forgot-password">Quên mật khẩu?</Link>
+          <Link to="/register">Tạo tài khoản</Link>
+        </div>
 
         <div className="demo">
           <span className="mut">{t('login.demo')}</span>
