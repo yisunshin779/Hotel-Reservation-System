@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StaffBookingApi } from '../../api/hotel'
-import { STATUS_LABEL, vnd } from '../../lib'
+import StayDialog from '../../components/StayDialog'
 import { useAuth } from '../../store/auth'
+import { STATUS_LABEL, serviceTotal, vnd } from '../../lib'
 
 export default function ReservationsPage() {
   const [q, setQ] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const user = useAuth((s) => s.user)
@@ -65,49 +67,60 @@ export default function ReservationsPage() {
               </tr>
             </thead>
             <tbody>
-              {list.data.map((b) => (
-                <tr key={b.reservationId}>
-                  <td>{b.code}</td>
-                  <td>{b.guestName}</td>
-                  <td>{b.roomTypeName}{(b.quantity ?? 1) > 1 ? ` × ${b.quantity}` : ''}</td>
-                  <td>{b.roomNumbers?.join(', ') ?? b.roomNumber ?? '—'}</td>
-                  <td>{b.checkInDate} → {b.checkOutDate}</td>
-                  <td>{vnd(b.totalAmount)}</td>
-                  <td>{vnd(b.paidAmount)}</td>
-                  <td>{STATUS_LABEL[b.status]}</td>
-                  <td>
-                    {b.status === 'Confirmed' && (
-                      <button
-                        className="btn primary"
-                        disabled={checkIn.isPending}
-                        onClick={() => {
-                          const idNumber = prompt('Nhập số CCCD/hộ chiếu của khách:')
-                          if (idNumber) checkIn.mutate({ id: b.reservationId, idNumber })
-                        }}
-                      >
-                        Check-in
-                      </button>
-                    )}
-                    {b.status === 'CheckedIn' && (
-                      <button
-                        className="btn"
-                        disabled={checkOut.isPending}
-                        onClick={() => {
-                          const due = b.totalAmount - b.paidAmount
-                          const msg = due > 0 ? `Khách còn nợ ${vnd(due)}. Đã thu đủ và check-out?` : 'Xác nhận check-out?'
-                          if (confirm(msg)) checkOut.mutate(b.reservationId)
-                        }}
-                      >
-                        Check-out
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {list.data.map((b) => {
+                const total = b.totalAmount + serviceTotal(b.services)
+                return (
+                  <tr key={b.reservationId}>
+                    <td>{b.code}</td>
+                    <td>{b.guestName}</td>
+                    <td>{b.roomTypeName}{(b.quantity ?? 1) > 1 ? ` × ${b.quantity}` : ''}</td>
+                    <td>{b.roomNumbers?.join(', ') ?? b.roomNumber ?? '—'}</td>
+                    <td>{b.checkInDate} → {b.checkOutDate}</td>
+                    <td>{vnd(total)}</td>
+                    <td>{vnd(b.paidAmount)}</td>
+                    <td>{STATUS_LABEL[b.status]}</td>
+                    <td>
+                      {b.status === 'Confirmed' && (
+                        <button
+                          className="btn primary"
+                          disabled={checkIn.isPending}
+                          onClick={() => {
+                            const idNumber = prompt('Nhập số CCCD/hộ chiếu của khách:')
+                            if (idNumber) checkIn.mutate({ id: b.reservationId, idNumber })
+                          }}
+                        >
+                          Check-in
+                        </button>
+                      )}
+                      {b.status === 'CheckedIn' && (
+                        <>
+                          <button className="btn" onClick={() => setOpenId(b.reservationId)}>Dịch vụ / Đổi phòng</button>{' '}
+                          <button
+                            className="btn"
+                            disabled={checkOut.isPending}
+                            onClick={() => {
+                              const due = total - b.paidAmount
+                              const msg = due > 0 ? `Khách còn nợ ${vnd(due)}. Đã thu đủ và check-out?` : 'Xác nhận check-out?'
+                              if (confirm(msg)) checkOut.mutate(b.reservationId)
+                            }}
+                          >
+                            Check-out
+                          </button>
+                        </>
+                      )}
+                      {b.status === 'CheckedOut' && (
+                        <button className="btn" onClick={() => setOpenId(b.reservationId)}>Hóa đơn</button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      {openId && <StayDialog id={openId} onClose={() => setOpenId(null)} />}
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { Link, useNavigate } from 'react-router-dom'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { BranchApi, SearchApi } from '../api/hotel'
 import HeroFx from '../components/HeroFx'
@@ -28,20 +28,28 @@ export default function SearchPage() {
   const [p, setP] = useState<SearchParams>({
     branchId: '', checkIn: today(), checkOut: tomorrow, adults: 2, children: 0, rooms: 1,
   })
-  const [submitted, setSubmitted] = useState<SearchParams | null>(null)
+  // Đã bấm "Tìm phòng trống" ít nhất một lần chưa. Sau đó kết quả tự cập nhật theo form
+  const [searched, setSearched] = useState(false)
 
   const branches = useQuery({ queryKey: ['branches'], queryFn: BranchApi.list })
-  const result = useQuery({
-    queryKey: ['availability', submitted],
-    queryFn: () => SearchApi.search(submitted!),
-    enabled: submitted !== null,
-  })
 
   const nights = nightsBetween(p.checkIn, p.checkOut)
   const dateError =
     p.checkIn < today() ? 'Ngày nhận phòng không được ở quá khứ.'
     : nights < 1 ? 'Ngày trả phòng phải sau ngày nhận phòng.'
     : ''
+  const countError =
+    p.adults < 1 || p.rooms < 1 || p.rooms > 5 || p.children < 0
+      ? 'Số người lớn từ 1, số phòng từ 1 đến 5.'
+      : ''
+  const ready = searched && !!p.branchId && !dateError && !countError
+
+  const result = useQuery({
+    queryKey: ['availability', p],
+    queryFn: () => SearchApi.search(p),
+    enabled: ready,
+    placeholderData: keepPreviousData, // giữ kết quả cũ trong lúc tính lại
+  })
 
   function update<K extends keyof SearchParams>(key: K, value: SearchParams[K]) {
     setP({ ...p, [key]: value })
@@ -49,8 +57,10 @@ export default function SearchPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!dateError && p.branchId) setSubmitted(p)
+    if (!dateError && !countError && p.branchId) setSearched(true)
   }
+
+  const formError = dateError || countError
 
   return (
     <div className="home">
@@ -97,31 +107,29 @@ export default function SearchPage() {
             🚪 {t('Số phòng')}
             <input type="number" min={1} max={5} value={p.rooms} onChange={(e) => update('rooms', +e.target.value)} />
           </label>
-          <button className="btn primary shine search-btn" disabled={!!dateError || !p.branchId}>
+          <button className="btn primary shine search-btn" disabled={!!formError || !p.branchId}>
             🔎 {t('Tìm phòng trống')}
           </button>
         </form>
-        {dateError && <p className="err center">{t(dateError)}</p>}
+        {formError && <p className="err center">{t(formError)}</p>}
+        {ready && <p className="mut center live-hint">{t('Kết quả tự cập nhật khi bạn thay đổi thông tin ở trên.')}</p>}
 
-        {result.isLoading && (
+        {ready && result.isLoading && (
           <div className="results">
             {[0, 1].map((i) => <div key={i} className="room-card skeleton" />)}
           </div>
         )}
-        {result.error && <p className="err center">{t((result.error as Error).message)}</p>}
-        {result.data?.length === 0 && (
+        {ready && result.error && <p className="err center">{t((result.error as Error).message)}</p>}
+        {ready && result.data?.length === 0 && (
           <div className="empty">😔 {t('Không còn phòng phù hợp. Hãy thử đổi ngày hoặc số phòng.')}</div>
         )}
 
-        {!!result.data?.length && (
+        {ready && !!result.data?.length && (
           <>
             <h2 className="section-title">
-              {t('{{n}} hạng phòng · {{nights}} đêm', {
-                n: result.data.length,
-                nights: nightsBetween(submitted!.checkIn, submitted!.checkOut),
-              })}
+              {t('{{n}} hạng phòng · {{nights}} đêm', { n: result.data.length, nights })}
             </h2>
-            <div className="results">
+            <div className={`results ${result.isFetching ? 'updating' : ''}`}>
               {result.data.map((a, i) => {
                 const look = LOOK[a.roomType.name] ?? { emoji: '🛏️', cls: 'v1' }
                 return (
@@ -145,15 +153,14 @@ export default function SearchPage() {
                     <div className="rc-price">
                       <small>{t('Từ {{price}}/đêm', { price: vnd(a.roomType.basePrice) })}</small>
                       <div className="price">{vnd(a.total)}</div>
-                      <small>
-                        {t('{{nights}} đêm × {{rooms}} phòng', {
-                          nights: nightsBetween(submitted!.checkIn, submitted!.checkOut),
-                          rooms: submitted!.rooms,
-                        })}
-                      </small>
+                      <small>{t('{{nights}} đêm × {{rooms}} phòng', { nights, rooms: p.rooms })}</small>
+                      <Link className="btn btn-fit" to={`/rooms/${a.roomType.roomTypeId}`} state={{ search: p }}>
+                        {t('Xem chi tiết')}
+                      </Link>
                       <button
                         className="btn primary shine"
-                        onClick={() => navigate('/book', { state: { search: submitted, item: a } })}
+                        disabled={result.isFetching}
+                        onClick={() => navigate('/book', { state: { search: p, item: a } })}
                       >
                         {t('Đặt phòng')}
                       </button>

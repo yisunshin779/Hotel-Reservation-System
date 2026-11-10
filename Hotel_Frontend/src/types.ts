@@ -10,6 +10,7 @@ export interface User {
   email: string;
   role: Role;
   branchId?: string;
+  phone?: string;
 }
 
 export interface Branch {
@@ -49,6 +50,7 @@ export interface Reservation {
   holdExpiresAt?: string;
   roomNumber?: string
   quantity?: number
+  services?: ServiceCharge[]
   roomNumbers?: string[]
   branchId?: string
 }
@@ -105,4 +107,18 @@ export interface PriceRow {
   normal: number
   weekend: number
   holiday: number
+}
+
+export interface ServiceItem {
+  serviceId: string
+  name: string
+  price: number
+}
+
+export interface ServiceCharge {
+  id: string
+  name: string
+  unitPrice: number
+  quantity: number
+  at: string
 }

@@ -15,3 +15,7 @@ export const STATUS_LABEL: Record<ReservationStatus, string> = {
   Expired: 'Hết hạn giữ phòng',
   NoShow: 'Không đến',
 }
+
+// Tổng tiền các dịch vụ đã ghi cho một đơn
+export const serviceTotal = (services?: { unitPrice: number; quantity: number }[]) =>
+  (services ?? []).reduce((sum, s) => sum + s.unitPrice * s.quantity, 0)

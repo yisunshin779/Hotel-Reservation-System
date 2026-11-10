@@ -18,7 +18,7 @@ export default function DashboardLayout() {
         {canReport && <NavLink to="/dashboard/reports">{t('dash.reports')}</NavLink>}
         {canReport && <NavLink to="/dashboard/pricing">{t('dash.pricing')}</NavLink>}
         <div style={{ flex: 1 }} />
-        <small>{user?.fullName}</small>
+        <NavLink to="/profile">👤 {user?.fullName}</NavLink>
         <LangSwitch />
         <button className="btn" onClick={() => { logout(); navigate('/login') }}>{t('nav.logout')}</button>
       </aside>

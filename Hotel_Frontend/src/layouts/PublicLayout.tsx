@@ -25,10 +25,14 @@ export default function PublicLayout() {
           <NavLink to="/" end>{t('nav.about')}</NavLink>
           <NavLink to="/search">{t('nav.search')}</NavLink>
           {user?.role === 'guest' && <NavLink to="/my-bookings">{t('nav.myBookings')}</NavLink>}
+          {user && user.role !== 'guest' && <NavLink to="/dashboard">{t('Trang quản lý')}</NavLink>}
         </nav>
         <LangSwitch />
         {user ? (
-          <button className="btn" onClick={() => { logout(); navigate('/') }}>{t('nav.logout')}</button>
+          <>
+            <Link to="/profile" className="user-chip">👤 {user.fullName}</Link>
+            <button className="btn" onClick={() => { logout(); navigate('/') }}>{t('nav.logout')}</button>
+          </>
         ) : (
           <Link to="/login" className="btn primary">{t('nav.login')}</Link>
         )}

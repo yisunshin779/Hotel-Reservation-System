@@ -14,7 +14,7 @@ export default function BookingPage() {
 
   const [form, setForm] = useState({
     guestName: user.fullName,
-    phone: '',
+    phone: user.phone ?? '',
     note: '',
     promoCode: '',
   })

@@ -1,4 +1,4 @@
-import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow } from '../types'
+import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem } from '../types'
 import { api } from './client'
 import { nightsBetween, today } from '../lib'
 
@@ -351,7 +351,8 @@ export const StaffBookingApi = {
         }
       })
       res.status = 'CheckedOut'
-      res.paidAmount = res.totalAmount // thu nốt phần còn lại tại quầy
+      const extra = (res.services ?? []).reduce((s, x) => s + x.unitPrice * x.quantity, 0)
+      res.paidAmount = res.totalAmount + extra // thu nốt tiền phòng còn lại và tiền dịch vụ
       saveRooms(rooms)
       saveRes(list)
       return
@@ -434,5 +435,145 @@ export const ReportApi = {
       }
     }
     return (await api.get('/reports/summary')).data
+  },
+}
+
+// ---------- Chi tiết hạng phòng ----------
+export const RoomTypeApi = {
+  async get(id: string): Promise<RoomType> {
+    if (USE_MOCK) {
+      const found = MOCK_ROOM_TYPES.find((x) => x.type.roomTypeId === id)
+      if (!found) throw new Error('Không tìm thấy hạng phòng.')
+      return found.type
+    }
+    return (await api.get(`/room-types/${id}`)).data
+  },
+}
+
+// ---------- Hồ sơ cá nhân ----------
+export const ProfileApi = {
+  async update(email: string, data: { fullName: string; phone: string }): Promise<User> {
+    if (USE_MOCK) {
+      await wait(400)
+      const found = loadUsers()[email]
+      if (!found) throw new Error('Không tìm thấy tài khoản.')
+      const user: User = { ...found.user, fullName: data.fullName.trim(), phone: data.phone }
+      saveUser(email, { password: found.password, user })
+      return user
+    }
+    return (await api.put('/users/me', data)).data
+  },
+
+  async changePassword(email: string, current: string, next: string): Promise<void> {
+    if (USE_MOCK) {
+      await wait(400)
+      const found = loadUsers()[email]
+      if (!found || found.password !== current) throw new Error('Mật khẩu hiện tại không đúng.')
+      saveUser(email, { password: next, user: found.user })
+      return
+    }
+    await api.post('/users/me/change-password', { currentPassword: current, newPassword: next })
+  },
+}
+
+// ---------- Lễ tân: khách đang ở (dịch vụ, đổi phòng) ----------
+const MOCK_SERVICES: ServiceItem[] = [
+  { serviceId: 'minibar', name: 'Minibar', price: 85000 },
+  { serviceId: 'breakfast', name: 'Bữa sáng buffet', price: 150000 },
+  { serviceId: 'laundry', name: 'Giặt ủi (mỗi kg)', price: 50000 },
+  { serviceId: 'spa', name: 'Massage 60 phút', price: 450000 },
+  { serviceId: 'airport', name: 'Đưa đón sân bay', price: 300000 },
+  { serviceId: 'latecheckout', name: 'Trả phòng muộn', price: 200000 },
+]
+
+export const StayApi = {
+  async get(id: string): Promise<Reservation> {
+    if (USE_MOCK) {
+      const r = loadRes().find((x) => x.reservationId === id)
+      if (!r) throw new Error('Không tìm thấy đơn đặt phòng.')
+      return r
+    }
+    return (await api.get(`/staff/reservations/${id}`)).data
+  },
+
+  async services(): Promise<ServiceItem[]> {
+    if (USE_MOCK) return MOCK_SERVICES
+    return (await api.get('/services')).data
+  },
+
+  async addService(id: string, serviceId: string, quantity: number): Promise<void> {
+    if (USE_MOCK) {
+      await wait(250)
+      if (!Number.isInteger(quantity) || quantity < 1) throw new Error('Số lượng phải từ 1 trở lên.')
+      const svc = MOCK_SERVICES.find((s) => s.serviceId === serviceId)
+      if (!svc) throw new Error('Vui lòng chọn dịch vụ.')
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === id)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'CheckedIn') throw new Error('Chỉ ghi dịch vụ cho khách đang ở.')
+      res.services = [
+        ...(res.services ?? []),
+        { id: crypto.randomUUID(), name: svc.name, unitPrice: svc.price, quantity, at: new Date().toISOString() },
+      ]
+      saveRes(list)
+      return
+    }
+    await api.post(`/staff/reservations/${id}/services`, { serviceId, quantity })
+  },
+
+  async removeService(id: string, chargeId: string): Promise<void> {
+    if (USE_MOCK) {
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === id)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'CheckedIn') throw new Error('Đơn đã chốt, không xóa được dịch vụ.')
+      res.services = (res.services ?? []).filter((s) => s.id !== chargeId)
+      saveRes(list)
+      return
+    }
+    await api.delete(`/staff/reservations/${id}/services/${chargeId}`)
+  },
+
+  // Các phòng trống cùng hạng, cùng chi nhánh để đổi sang
+  async freeRooms(id: string): Promise<Room[]> {
+    if (USE_MOCK) {
+      const res = loadRes().find((x) => x.reservationId === id)
+      if (!res) return []
+      return loadRooms().filter(
+        (r) =>
+          r.status === 'Available' &&
+          r.roomTypeName === res.roomTypeName &&
+          (!res.branchId || r.branchId === res.branchId)
+      )
+    }
+    return (await api.get(`/staff/reservations/${id}/available-rooms`)).data
+  },
+
+  async changeRoom(id: string, from: string, to: string): Promise<void> {
+    if (USE_MOCK) {
+      await wait(350)
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === id)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'CheckedIn') throw new Error('Chỉ đổi phòng cho khách đang ở.')
+
+      const rooms = loadRooms()
+      const same = (r: Room, no: string) => r.roomNumber === no && (!res.branchId || r.branchId === res.branchId)
+      const oldRoom = rooms.find((r) => same(r, from))
+      const newRoom = rooms.find((r) => same(r, to))
+      if (!oldRoom || !newRoom) throw new Error('Không tìm thấy phòng.')
+      if (newRoom.status !== 'Available') throw new Error('Phòng mới không còn trống.')
+      if (newRoom.roomTypeName !== res.roomTypeName) throw new Error('Chỉ đổi sang phòng cùng hạng.')
+
+      oldRoom.status = 'Dirty'
+      newRoom.status = 'Occupied'
+      const nums = res.roomNumbers ?? (res.roomNumber ? [res.roomNumber] : [])
+      res.roomNumbers = nums.map((n) => (n === from ? to : n))
+      res.roomNumber = res.roomNumbers[0]
+      saveRooms(rooms)
+      saveRes(list)
+      return
+    }
+    await api.post(`/staff/reservations/${id}/change-room`, { from, to })
   },
 }
