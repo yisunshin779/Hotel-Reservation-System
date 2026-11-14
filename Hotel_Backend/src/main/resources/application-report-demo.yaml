@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/hotel_report_demo
+    username: postgres
+    password: ${DB_PASSWORD}

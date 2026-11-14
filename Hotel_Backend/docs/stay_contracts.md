@@ -26,7 +26,7 @@ Các lựa chọn triển khai cần phân biệt với yêu cầu đã chốt:
 - Thuế ngoài giá trên tổng sau giảm, làm tròn 2 số, theo nền tảng folio_preview hiện có. Snapshot tỷ lệ khi check-in; mặc định 0. Thuế suất thực tế, nhiều thuế suất và mô hình giá đã gồm thuế chưa được tài liệu xác nhận.
 - Phí trả muộn chưa có công thức/mức cụ thể trong báo cáo. Tham số late_checkout_fee cho phép cấu hình mức cố định của chi nhánh, mặc định NULL (không tự áp phí). Khi khách sạn chốt chính sách theo giờ/phần trăm cần thay policy tương ứng.
 - DRAFT được tính lại từ các bảng chi phí nguồn. Không nhận điều chỉnh chỉ tồn tại trong invoice_lines. Điều chỉnh sau đóng thuộc Admin, chưa triển khai.
-- Giữ tích hợp principal đã xác thực của UC02; không triển khai lại hệ thống tài khoản trong module lưu trú. API chạy độc lập chưa có adapter xác thực vẫn trả 401.
+- Staff authentication after merging main uses HTTP Basic and the existing hotel.users identity service; Spring Security supplies the verified principal. ReceptionistContext still checks active staff and branch membership.
 - Delivery request là yêu cầu gửi; chưa có notification worker/SMTP nên không coi là email đã gửi. Thanh toán/hoàn QR/thẻ vẫn mô phỏng, đúng phạm vi báo cáo.
 
 Migration 06 mở rộng schema nền một cách repeatable, không sửa báo cáo DOCX và không tự sửa dữ liệu tài chính đã đóng. Chạy migration trên database đích trước khi dùng API mới.

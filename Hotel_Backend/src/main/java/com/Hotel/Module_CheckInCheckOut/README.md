@@ -2,15 +2,15 @@
 
 Phần triển khai nằm trong `src/main/java/com/Hotel/Module_CheckInCheckOut`.
 Stack giữ theo repository: Java 17, Spring Boot 3.2, PostgreSQL 15+.
-Frontend React/Vite hiện là các trang placeholder; thay đổi này cung cấp backend REST API và bản xuất hóa đơn HTML, chưa xây giao diện vận hành.
+Frontend React/Vite from main currently uses mock data. This module supplies the backend REST API and HTML invoice export; the staff UI is not connected to these endpoints yet.
 
 ## Kết quả khảo sát và phạm vi
 
 Nguồn yêu cầu ưu tiên là `../../Sứ Thanh Hóa - 172889 - Báo cáo BTL Phân tích thiết kế hệ thống.docx` (đường dẫn tính từ `Hotel_Backend`). Đối chiếu UC16–19, OC-16.01/02, OC-17.01, OC-19.01/02/03 và OC-11.01/02, cùng biểu đồ lớp/trình tự UC16/17/19. Xem `docs/stay_contracts.md` để biết cách ánh xạ và các quyết định triển khai còn cần cấu hình.
 
-- Backend ban đầu chỉ có các class rỗng của `Module_DatPhong`, chưa có entity JPA hoàn chỉnh, service/controller chạy được, authentication hay transaction nghiệp vụ.
-- `ReservationRepository` cũ khai báo JPA nhưng thiếu import và entity ánh xạ. Giữ chữ ký hàm tra cứu thành integration interface, chưa triển khai JPA/UC07, để không chặn build.
-- Entry point được bổ sung `@SpringBootApplication`; driver MySQL được thay bằng PostgreSQL để khớp `Hotel_Database`. JPA vẫn được giữ, không tự tạo/sửa schema.
+- Historical baseline before merging main: booking classes were placeholders. After synchronization, the JPA booking/account modules and report module from main are retained.
+- ReservationRepository now uses the mapped booking entity from main. The check-in/check-out models remain JDBC domain records in their own package.
+- The shared application keeps scheduling from main and the Clock bean used by stay services. PostgreSQL and all dependencies from main are retained, using Java 17. JPA defaults to update for the legacy entities; stay tables require the SQL migrations below.
 - Tái sử dụng 26 bảng và các enum nền; migration 06 bổ sung hồ sơ người ở, snapshot giá assignment, điều chuyển tồn phòng và yêu cầu gửi hóa đơn. Dùng JDBC qua repository vì model đặt phòng hiện chưa ánh xạ; không tạo các entity JPA trùng lặp.
 - Redis chưa cần cho UC16/UC19 nên tắt autoconfiguration Redisson; dependency của module đặt phòng vẫn giữ nguyên. Khi module đó sẵn sàng, cấu hình lại Redis/autoconfiguration trong tích hợp chung.
 - Phạm vi triển khai là UC16/17/19 và nhánh hoàn chênh lệch tại quầy liên quan UC11. Không triển khai toàn bộ UC02/07/08/11/15/18/21/27, no-show, cổng thanh toán thật hoặc hóa đơn điều chỉnh. Module xác thực chung vẫn phải cung cấp principal đã kiểm chứng; không có cơ chế bypass.
@@ -169,3 +169,13 @@ $env:HOTEL_TEST_DB_USER='hotel_test'
 Database test dùng tài khoản cục bộ không mật khẩu hoặc cấu hình test riêng. Không có biến `HOTEL_TEST_DB_URL` thì integration suite bị skip rõ ràng, không được coi là đã test DB.
 
 Bao gồm kiểm tra snapshot giá, số dư/refund, thu trùng và bản ghi pending dùng chung, điều kiện check-in, sai quyền/chi nhánh, request principal, export, rollback sau lỗi DB, hóa đơn nháp/đã đóng, tương thích SQL legacy và hai cuộc đua bằng transaction thật (cùng phòng; ghi dịch vụ trong khi check-out).
+
+## Synchronization with main (2026-11-14)
+
+- `security/StaySecurityConfig.java` handles `/api/reservations/**` at order 2. It authenticates HTTP Basic credentials using the existing `ReportIdentityService` and `hotel.users` password hashes (BCrypt, with or without the `{bcrypt}` prefix). It requires RECEPTIONIST; services additionally check the active branch. There is no header-based identity bypass.
+- Report routes run at order 1; the account module is the fallback at order 3. The old permit-all report fallback was removed so it cannot mask the account or stay rules. The account password encoder is primary, while staff/report authentication explicitly uses the delegating encoder.
+- Account exception advice is scoped to the account and booking modules so it cannot turn stay errors into HTTP 500 or replace the stay validation contract.
+- Both `HOTEL_DB_*` and the `DB_*` variables from main are supported; `HOTEL_DB_*` takes precedence. Set `HOTEL_DDL_AUTO=none` when schema is managed externally. Booking still requires Redis as configured in main.
+- Booking from main uses `hotel.reservation` with UUID IDs; stays and reports use `hotel.reservations` with bigint IDs. They remain separate existing models: a UUID returned by the booking API cannot be passed to a stay endpoint. Bridging these models requires a separate booking/data migration change.
+- Frontend from main uses mock data and assumes Bearer tokens and `/staff/reservations/...` URLs. It is not yet a live client for this module. Use the documented `/api/reservations/{id}` endpoints with staff HTTP Basic credentials for API validation.
+- Integration suites mock the separate booking/Redis infrastructure, use real PostgreSQL for stays/reports, and exercise the real Spring Security filter chains. They do not verify the legacy booking module end to end.

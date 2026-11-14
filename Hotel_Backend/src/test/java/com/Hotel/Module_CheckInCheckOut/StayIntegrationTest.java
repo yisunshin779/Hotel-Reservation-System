@@ -26,10 +26,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnabledIfEnvironmentVariable(named="HOTEL_TEST_DB_URL",matches="jdbc:postgresql://[^/]+/hotel_lifecycle_test")
 @SpringBootTest(classes=HotelSystem.class,properties={
     "spring.datasource.url=${HOTEL_TEST_DB_URL}","spring.datasource.username=${HOTEL_TEST_DB_USER:hotel_test}",
-    "spring.datasource.password=","spring.datasource.hikari.maximum-pool-size=8","debug=false","logging.level.root=WARN"})
+    "spring.datasource.password=","spring.datasource.hikari.maximum-pool-size=8","spring.jpa.hibernate.ddl-auto=none","debug=false","logging.level.root=WARN"})
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StayIntegrationTest {
+    // Booking infrastructure has separate Redis and legacy JPA tables.
+    @org.springframework.boot.test.mock.mockito.MockBean org.redisson.api.RedissonClient redissonClient;
+    @org.springframework.boot.test.mock.mockito.MockBean com.Hotel.Module_DatPhong.service.BookingService bookingService;
+
     @Autowired JdbcTemplate jdbc;
     @Autowired CheckInService checkin;
     @Autowired CheckOutService checkout;
@@ -39,6 +43,7 @@ class StayIntegrationTest {
     @Autowired StayRepository repo;
     @Autowired MockMvc mvc;
     @Autowired PlatformTransactionManager transactionManager;
+    private static final String STAFF_HASH = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("test-password");
     private final Receptionist actor=new Receptionist(1,1,"RECEPTIONIST");
     private BigDecimal n(String v) { return new BigDecimal(v); }
     private CheckInResultDTO checkIn(long id, List<Long> rooms, String identity, Receptionist staff) {
@@ -55,7 +60,7 @@ class StayIntegrationTest {
         jdbc.execute("TRUNCATE hotel.branches,hotel.roles,hotel.customers,hotel.promotions RESTART IDENTITY CASCADE");
         jdbc.update("INSERT INTO hotel.branches(name,address,city) VALUES('Test','Test','Test'),('Other','Other','Other')");
         jdbc.update("INSERT INTO hotel.roles(code,name) VALUES('RECEPTIONIST','Lễ tân'),('GUEST','Khách')");
-        jdbc.update("INSERT INTO hotel.users(email,full_name,password_hash,role_id,branch_id) VALUES('staff@example.test','Staff','unused',1,1)");
+        jdbc.update("INSERT INTO hotel.users(email,full_name,password_hash,role_id,branch_id) VALUES('staff@example.test','Staff',?,1,1)", STAFF_HASH);
         jdbc.update("INSERT INTO hotel.customers(full_name) VALUES('Guest')");
         jdbc.update("INSERT INTO hotel.room_types(branch_id,name,capacity,base_price) VALUES(1,'Standard',2,999),(1,'Deluxe',3,1999),(2,'Other',2,999)");
         jdbc.update("INSERT INTO hotel.rooms(branch_id,room_type_id,room_number) VALUES(1,1,'101'),(1,1,'102'),(1,1,'103'),(1,2,'201'),(2,3,'101')");
@@ -106,7 +111,7 @@ class StayIntegrationTest {
         assertThrows(org.springframework.dao.DataAccessException.class,() -> jdbc.update("UPDATE hotel.invoices SET total=1 WHERE id=?",result.invoiceId()));
         assertThrows(org.springframework.dao.DataAccessException.class,() -> jdbc.update("DELETE FROM hotel.invoice_lines WHERE invoice_id=?",result.invoiceId()));
         assertThrows(org.springframework.dao.DataAccessException.class,() -> jdbc.update("INSERT INTO hotel.service_usages(reservation_id,service_id,quantity,unit_price) VALUES(?,1,1,25)",id));
-        mvc.perform(get("/api/reservations/"+id+"/checkout/invoice/export").principal(() -> "staff@example.test"))
+        mvc.perform(get("/api/reservations/"+id+"/checkout/invoice/export").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(header().string("Content-Disposition","attachment; filename=invoice-"+invoice.id()+".html"));
     }
     @Test void rejectsWrongDateStateIdentityAndPaymentWithoutSideEffects() {
@@ -158,12 +163,37 @@ class StayIntegrationTest {
         mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms").header("X-User-Id","1").header("X-Role","RECEPTIONIST"))
             .andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms").principal(() -> "staff@example.test"))
+        mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk());
-        mvc.perform(post("/api/reservations/"+id+"/checkin").principal(() -> "staff@example.test")
+        mvc.perform(post("/api/reservations/"+id+"/checkin").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password"))
             .contentType("application/json").content("{\"roomIds\":[1],\"guest\":{\"fullName\":\"Occupant\",\"identificationInfo\":\"AB123456\"}}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.reservationStatus").value("CHECKED_IN"));
         assertThrows(StayException.class,() -> checkIn(id,List.of(1L),"AB123456",actor));
+    }
+    @Test void mergedSecurityRejectsInvalidCredentialsRolesBranchesAndLockedUsers() throws Exception {
+        long id=booking(1);
+        String url="/api/reservations/"+id+"/checkin/available-rooms";
+        mvc.perform(get(url).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "wrong-password")))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+        jdbc.update("UPDATE hotel.users SET role_id=2 WHERE id=1");
+        mvc.perform(get(url).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        jdbc.update("UPDATE hotel.users SET role_id=1,branch_id=2 WHERE id=1");
+        mvc.perform(get(url).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        jdbc.update("UPDATE hotel.users SET branch_id=1,locked_until=now()+interval '1 hour' WHERE id=1");
+        mvc.perform(get(url).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
+            .andExpect(status().isUnauthorized());
+    }
+    @Test void moduleValidationContractsSurviveTheMergedExceptionHandlers() throws Exception {
+        long id=booking(1);
+        mvc.perform(post("/api/reservations/"+id+"/checkin")
+            .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password"))
+            .contentType("application/json").content("{broken"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mvc.perform(post("/api/v1/auth/register").contentType("application/json").content("{}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.status").value("error"))
+            .andExpect(jsonPath("$.errors").exists());
     }
     @Test void concurrentCheckinsCannotAssignTheSameRoom() throws Exception {
         long first=booking(1),second=booking(1);
@@ -285,14 +315,14 @@ class StayIntegrationTest {
     @Test void identityStepBelongsToOccupantAndDoesNotCheckInOrOverwriteBooker() throws Exception {
         long id=booking(1);
         assertThrows(StayException.class,()->checkin.confirm(id,List.of(1L),null,null,actor));
-        mvc.perform(post("/api/reservations/"+id+"/checkin/identity").principal(()->"staff@example.test")
+        mvc.perform(post("/api/reservations/"+id+"/checkin/identity").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password"))
             .contentType("application/json").content("{\"fullName\":\"Actual Occupant\",\"identificationInfo\":\"AB123456\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$[0].roomId").exists());
         assertEquals("CONFIRMED",jdbc.queryForObject("SELECT status::text FROM hotel.reservations WHERE id=?",String.class,id));
         assertEquals(0,count("room_assignments"));
         assertEquals("Actual Occupant",jdbc.queryForObject("SELECT full_name FROM hotel.stay_guests WHERE reservation_id=?",String.class,id));
         assertNull(jdbc.queryForObject("SELECT identity_document FROM hotel.customers WHERE id=1",String.class));
-        mvc.perform(post("/api/reservations/"+id+"/checkin").principal(()->"staff@example.test")
+        mvc.perform(post("/api/reservations/"+id+"/checkin").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password"))
             .contentType("application/json").content("{\"roomIds\":[1]}"))
             .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("AB123456"))));
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM hotel.audit_logs WHERE after_data::text LIKE '%AB123456%'",Integer.class));
@@ -313,7 +343,7 @@ class StayIntegrationTest {
         assertThrows(StayException.class,()->refunds.confirmCash(id,f.id(),false,actor));
         assertThrows(StayException.class,()->refunds.request(id,payment,n("1"),"CASH","SECOND-REFUND","Trả dư",actor));
         mvc.perform(post("/api/reservations/"+id+"/checkout/refunds/"+f.id()+"/confirm-cash")
-            .principal(()->"staff@example.test").contentType("application/json").content("{\"cashReturned\":true}"))
+            .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json").content("{\"cashReturned\":true}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DONE"));
         checkout.confirm(id,actor);
         assertEquals("DONE",refunds.request(id,payment,n("50.00"),"CASH","CASH-REFUND-KEY","Trả dư",actor).status());
@@ -516,7 +546,7 @@ class StayIntegrationTest {
     @Test void roomFilterAndClosedFinancialGuardsStillApplyToNewEndpoints() throws Exception {
         long id=booking(1);
         jdbc.update("UPDATE hotel.rooms SET floor=3,view_direction='SEA' WHERE id=2");
-        mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms?floor=3&viewDirection=SEA").principal(()->"staff@example.test"))
+        mvc.perform(get("/api/reservations/"+id+"/checkin/available-rooms?floor=3&viewDirection=SEA").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].roomId").value(2));
         checkIn(id,List.of(1L),"AB123456",actor);
         assertThrows(StayException.class,()->changes.options(id,1,RoomChangeReason.UPGRADE,new Receptionist(1,2,"RECEPTIONIST")));
@@ -549,38 +579,38 @@ class StayIntegrationTest {
     @Test void httpStayFlowPreservesRequestsAndResponseFieldsAfterPackageRefactor() throws Exception {
         long id=booking(1);
         String url="/api/reservations/"+id;
-        mvc.perform(post(url+"/checkin/identity").principal(()->"staff@example.test").contentType("application/json")
+        mvc.perform(post(url+"/checkin/identity").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json")
             .content("{\"fullName\":\"Occupant\",\"identificationInfo\":\"AB123456\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$[0].roomId").value(1))
             .andExpect(jsonPath("$[0].roomNumber").value("101"));
-        mvc.perform(post(url+"/checkin").principal(()->"staff@example.test").contentType("application/json")
+        mvc.perform(post(url+"/checkin").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json")
             .content("{\"roomIds\":[1]}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.reservationId").value(id))
             .andExpect(jsonPath("$.rooms[0].occupancy").value("OCCUPIED"))
             .andExpect(jsonPath("$.actualCheckInTime").exists());
-        mvc.perform(get(url+"/room-change/available-rooms?oldRoomId=1&reason=ROOM_ISSUE").principal(()->"staff@example.test"))
+        mvc.perform(get(url+"/room-change/available-rooms?oldRoomId=1&reason=ROOM_ISSUE").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(jsonPath("$[0].room.roomId").exists())
             .andExpect(jsonPath("$[0].adjustment").exists());
-        mvc.perform(post(url+"/room-change").principal(()->"staff@example.test").contentType("application/json")
+        mvc.perform(post(url+"/room-change").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json")
             .content("{\"oldRoomId\":1,\"newRoomId\":4,\"reason\":\"ROOM_ISSUE\",\"expectedAdjustment\":0}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.newRoomId").value(4));
-        mvc.perform(get(url+"/checkout/preview").principal(()->"staff@example.test"))
+        mvc.perform(get(url+"/checkout/preview").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.roomAmount").value(200))
             .andExpect(jsonPath("$.remainingAmount").value(200))
             .andExpect(jsonPath("$.lines.length()").value(2)).andExpect(jsonPath("$.lines[0].type").value("ROOM"))
             .andExpect(jsonPath("$.taxAmount").value(0));
-        mvc.perform(post(url+"/checkout/payment").principal(()->"staff@example.test").contentType("application/json")
+        mvc.perform(post(url+"/checkout/payment").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json")
             .content("{\"amount\":200,\"method\":\"CASH\",\"obligationKey\":\"short\"}"))
             .andExpect(status().isBadRequest());
         assertEquals(0,count("payments"));
-        mvc.perform(post(url+"/checkout/payment").principal(()->"staff@example.test").contentType("application/json")
+        mvc.perform(post(url+"/checkout/payment").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")).contentType("application/json")
             .content("{\"amount\":200,\"method\":\"CASH\",\"obligationKey\":\"HTTP-COUNTER-PAYMENT\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.paidAmount").value(200))
             .andExpect(jsonPath("$.remainingAmount").value(0));
-        mvc.perform(post(url+"/checkout").principal(()->"staff@example.test"))
+        mvc.perform(post(url+"/checkout").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.reservationStatus").value("CHECKED_OUT"))
             .andExpect(jsonPath("$.invoiceStatus").value("CLOSED")).andExpect(jsonPath("$.invoiceId").exists());
-        mvc.perform(get(url+"/checkout/invoice").principal(()->"staff@example.test"))
+        mvc.perform(get(url+"/checkout/invoice").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic("staff@example.test", "test-password")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.number").exists())
             .andExpect(jsonPath("$.reservationId").value(id)).andExpect(jsonPath("$.total").value(200))
             .andExpect(jsonPath("$.lines[0].quantity").value(1))

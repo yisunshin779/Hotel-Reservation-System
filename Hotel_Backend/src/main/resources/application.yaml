@@ -1,12 +1,15 @@
 spring:
   datasource:
-    url: ${HOTEL_DB_URL:jdbc:postgresql://localhost:5433/hotel_db}
-    username: ${HOTEL_DB_USER:hotel_admin}
-    password: ${HOTEL_DB_PASSWORD:}
+    url: ${HOTEL_DB_URL:${DB_URL:jdbc:postgresql://localhost:5433/hotel_db}}
+    username: ${HOTEL_DB_USER:${DB_USERNAME:hotel_admin}}
+    password: ${HOTEL_DB_PASSWORD:${DB_PASSWORD:}}
   jpa:
-    hibernate:
-      ddl-auto: none
     open-in-view: false
+    hibernate:
+      ddl-auto: ${HOTEL_DDL_AUTO:update}
+    properties:
+      hibernate:
+        default_schema: hotel
   autoconfigure:
     exclude: org.redisson.spring.starter.RedissonAutoConfigurationV2
 server:
