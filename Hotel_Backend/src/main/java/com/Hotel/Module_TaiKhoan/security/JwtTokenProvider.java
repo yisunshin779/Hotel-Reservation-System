@@ -7,9 +7,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 
 @Component
 public class JwtTokenProvider {
@@ -48,5 +52,24 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
         return claims.getSubject();
+    }
+
+    // 3. Bổ sung hàm validateToken vào cuối file:
+    public boolean validateToken(String authToken) {
+        try {
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(authToken);
+            return true;
+        } catch (SignatureException ex) {
+            System.out.println("Chữ ký JWT không hợp lệ");
+        } catch (MalformedJwtException ex) {
+            System.out.println("Token JWT bị hỏng, sai định dạng");
+        } catch (ExpiredJwtException ex) {
+            System.out.println("Token JWT đã hết hạn");
+        } catch (UnsupportedJwtException ex) {
+            System.out.println("Token JWT không được hỗ trợ");
+        } catch (IllegalArgumentException ex) {
+            System.out.println("Chuỗi claims của JWT trống");
+        }
+        return false;
     }
 }
