@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import HeroFx from '../components/HeroFx'
+import PageHead from '../components/PageHead'
+import Icon from '../components/Icon'
 
 // Số chạy từ 0 đến giá trị đích khi cuộn tới
 function Counter({ to, decimals = 0, suffix = '' }: { to: number; decimals?: number; suffix?: string }) {
-  const { i18n } = useTranslation()
   const ref = useRef<HTMLSpanElement>(null)
   const [val, setVal] = useState(0)
 
@@ -28,21 +27,20 @@ function Counter({ to, decimals = 0, suffix = '' }: { to: number; decimals?: num
     return () => { obs.disconnect(); cancelAnimationFrame(raf) }
   }, [to])
 
-  const shown = Number(val.toFixed(decimals)).toLocaleString(i18n.language === 'en' ? 'en-US' : 'vi-VN')
-  return <span ref={ref}>{shown}{suffix}</span>
+  return <span ref={ref}>{Number(val.toFixed(decimals)).toLocaleString('vi-VN')}{suffix}</span>
 }
 
 const STATS = [
   { to: 3, label: 'Chi nhánh', suffix: '' },
-  { to: 30, label: 'Phòng nghỉ', suffix: '' },
+  { to: 180, label: 'Phòng nghỉ', suffix: '' },
   { to: 10000, label: 'Khách đã đặt phòng', suffix: '+' },
   { to: 4.8, label: 'Điểm đánh giá', suffix: '/5', decimals: 1 },
 ]
 
-const BRANCHES = [
-  { emoji: '🏯', name: 'Hà Nội – Hoàn Kiếm', text: 'Giữa phố cổ, bước chân ra là hồ Gươm và những quán cà phê trứng nổi tiếng.' },
-  { emoji: '🏖️', name: 'Đà Nẵng – Mỹ Khê', text: 'Cách biển vài phút đi bộ, view bình minh trên bãi biển đẹp nhất hành tinh.' },
-  { emoji: '🌃', name: 'TP.HCM – Quận 1', text: 'Trung tâm sôi động, thuận tiện đi lại, ăn uống và mua sắm cả ngày lẫn đêm.' },
+const VALUES = [
+  { icon: 'check', title: 'Phòng trống thời gian thực', text: 'Xem ngay phòng còn trống và giá chính xác theo ngày bạn chọn.' },
+  { icon: 'check', title: 'Hủy miễn phí', text: 'Được hủy hoặc đổi đơn miễn phí trước 48 giờ nhận phòng.' },
+  { icon: 'check', title: 'Ưu đãi thành viên', text: 'Nhập mã khuyến mãi khi đặt phòng để được giảm giá ngay.' },
 ]
 
 const QUOTES = [
@@ -51,70 +49,95 @@ const QUOTES = [
   { text: 'Hủy đơn dễ dàng khi đổi lịch, đây là điều mình thích nhất.', who: 'Thu Hà, TP.HCM' },
 ]
 
-export default function AboutPage() {
-  const { t } = useTranslation()
+// Lời khen tự chuyển mỗi 4 giây (chỉ chạy khi tab này đang mở)
+function Voices() {
   const [q, setQ] = useState(0)
-
-  // Lời khen tự chuyển mỗi 4 giây
   useEffect(() => {
     const id = setInterval(() => setQ((i) => (i + 1) % QUOTES.length), 4000)
     return () => clearInterval(id)
   }, [])
 
   return (
-    <div className="home">
-      <section className="home-hero hero-photo hero-about">
-        <HeroFx />
-        <div className="hero-text">
-          <span className="badge-top">🏨 {t('Câu chuyện của chúng tôi')}</span>
-          <h1>
-            {t('Sứ Hotel – nơi mỗi chuyến đi')}<br />{t('đều có một chỗ nghỉ chân đáng nhớ')}
-          </h1>
-          <p>{t('Lấy cảm hứng từ sự tinh tế của gốm sứ Việt: giản dị, bền bỉ và ấm áp.')}</p>
-        </div>
-        <svg className="wave" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0,40 C200,90 400,0 600,40 C800,80 1000,10 1200,40 L1200,80 L0,80 Z" fill="#fff8ef" />
-        </svg>
-      </section>
-
-      <div className="home-body">
-        <div className="stats">
-          {STATS.map((s) => (
-            <div className="stat-item" key={s.label}>
-              <b><Counter to={s.to} decimals={s.decimals} suffix={s.suffix} /></b>
-              <span>{t(s.label)}</span>
-            </div>
-          ))}
-        </div>
-
-        <h2 className="section-title">{t('Ba điểm đến của Sứ Hotel')}</h2>
-        <div className="features">
-          {BRANCHES.map((b, i) => (
-            <div className="feature" key={b.name} style={{ animationDelay: `${i * 0.15}s` }}>
-              <div className="f-icon">{b.emoji}</div>
-              <h4>{t(b.name)}</h4>
-              <p>{t(b.text)}</p>
-            </div>
-          ))}
-        </div>
-
-        <h2 className="section-title">{t('Khách nói gì về chúng tôi')}</h2>
-        <div className="quote-box">
-          <p key={q} className="quote">“{t(QUOTES[q].text)}”</p>
-          <span className="quote-who">— {t(QUOTES[q].who)}</span>
-          <div className="dots">
-            {QUOTES.map((_, i) => (
-              <button key={i} className={i === q ? 'on' : ''} onClick={() => setQ(i)} aria-label={t('Lời khen {{n}}', { n: i + 1 })} />
-            ))}
-          </div>
-        </div>
-
-        <div className="cta">
-          <h3>{t('Sẵn sàng cho chuyến đi tiếp theo?')}</h3>
-          <p>{t('Chọn ngày, chọn chi nhánh, xác nhận phòng chỉ trong vài phút.')}</p>
-          <Link to="/search" className="btn primary shine">{t('Đặt phòng ngay')}</Link>
-        </div>
+    <div className="quote-box">
+      <p key={q} className="quote">“{QUOTES[q].text}”</p>
+      <span className="quote-who">— {QUOTES[q].who}</span>
+      <div className="dots">
+        {QUOTES.map((_, i) => (
+          <button key={i} className={i === q ? 'on' : ''} onClick={() => setQ(i)} aria-label={`Lời khen ${i + 1}`} />
+        ))}
       </div>
     </div>
+  )
+}
+
+type Tab = 'story' | 'values' | 'voices'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'story', label: 'Câu chuyện' },
+  { key: 'values', label: 'Giá trị' },
+  { key: 'voices', label: 'Khách nói gì' },
+]
+
+export default function AboutPage() {
+  const [tab, setTab] = useState<Tab>('story')
+
+  return (
+    <>
+      <PageHead
+        title="Về Sứ Hotel"
+        sub="Lấy cảm hứng từ sự tinh tế của gốm sứ Việt: giản dị, bền bỉ và ấm áp."
+        crumbs={[{ to: '/', label: 'Trang chủ' }, { label: 'Về Sứ Hotel' }]}
+      />
+
+      <div className="stats flat">
+        {STATS.map((s) => (
+          <div className="stat-item" key={s.label}>
+            <b><Counter to={s.to} decimals={s.decimals} suffix={s.suffix} /></b>
+            <span>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="utabs" style={{ marginTop: 24 }} role="tablist">
+        {TABS.map((x) => (
+          <button key={x.key} role="tab" className={`utab ${tab === x.key ? 'on' : ''}`} onClick={() => setTab(x.key)}>
+            {x.label}
+          </button>
+        ))}
+      </div>
+
+      <div key={tab} className="tab-anim">
+      {tab === 'story' && (
+        <div className="panel">
+          <p style={{ marginTop: 0 }}>
+            Sứ Hotel bắt đầu từ một ý tưởng đơn giản: một chỗ nghỉ chân sạch sẽ, ấm áp và minh bạch về giá.
+            Chúng tôi lấy cảm hứng từ gốm sứ Việt, nơi vẻ đẹp đến từ sự tinh tế và bền bỉ.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            Hiện Sứ Hotel vận hành ba chi nhánh tại Hà Nội, Đà Nẵng và TP.HCM với cùng một tiêu chuẩn phục vụ.
+            Khách có thể tìm phòng, đặt phòng và quản lý đơn của mình hoàn toàn trực tuyến.
+          </p>
+        </div>
+      )}
+
+      {tab === 'values' && (
+        <div className="features">
+          {VALUES.map((v) => (
+            <div className="feature" key={v.title}>
+              <div className="f-icon"><Icon name={v.icon} size={26} /></div>
+              <h4>{v.title}</h4>
+              <p>{v.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'voices' && <Voices />}
+      </div>
+      <div className="cta">
+        <h3>Sẵn sàng cho chuyến đi tiếp theo?</h3>
+        <p>Chọn chi nhánh, chọn ngày và xác nhận phòng chỉ trong vài phút.</p>
+        <Link to="/search" className="btn primary">Tìm phòng trống</Link>
+      </div>
+    </>
   )
 }

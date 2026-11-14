@@ -716,3 +716,27 @@ button, .btn { font-weight: 500; }
 .q-total.updating { opacity: 0.55; }
 .q-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 .q-row .price { font-size: 20px; }
+
+/* ---------- Đánh giá ---------- */
+.stars-rt { display: inline-flex; gap: 2px; line-height: 1; }
+.stars-rt span, .stars-rt button { color: #d8c9b3; background: none; border: 0; padding: 0; font: inherit; line-height: 1; }
+.stars-rt .on { color: #f5a623; }
+.stars-rt button { cursor: pointer; transition: transform 0.12s; }
+.stars-rt button:hover { transform: scale(1.2); }
+
+.rate-pick { text-align: center; margin: 16px 0 10px; }
+.rate-label { margin-top: 6px; font-weight: 600; min-height: 24px; color: var(--pri); }
+
+.rev-sum { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.rev-sum > b { font: 700 38px var(--font); color: var(--pri); }
+.rev-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.rev-item:last-child { border-bottom: 0; }
+.card.rev-item { padding: 14px 16px; border: 1px solid var(--line); }
+.rev-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rev-item p { margin: 6px 0 0; }
+
+.dist-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.dist-row > span:first-child { width: 32px; }
+.dist-row > span:last-child { width: 28px; text-align: right; }
+.dist-bar { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.dist-bar i { display: block; height: 100%; border-radius: 99px; background: #f5a623; transition: width 0.4s; }
