@@ -39,14 +39,6 @@ export default function OverviewPage() {
     { to: '/dashboard/rooms', n: count('Dirty'), label: 'Phòng cần dọn' },
   ]
 
-  const links = [
-    { to: '/dashboard/rooms', title: 'Sơ đồ phòng', text: 'Xem trạng thái từng phòng theo tầng và chi nhánh.', manage: false },
-    { to: '/dashboard/reservations', title: 'Đơn đặt phòng', text: 'Check-in, check-out, ghi dịch vụ và đổi phòng.', manage: false },
-    { to: '/dashboard/reports', title: 'Báo cáo', text: 'Doanh thu, công suất phòng và tình hình đặt phòng.', manage: true },
-    { to: '/dashboard/pricing', title: 'Giá & khuyến mãi', text: 'Bảng giá theo mùa và mã khuyến mãi.', manage: true },
-    { to: '/dashboard/reviews', title: 'Đánh giá', text: 'Nhận xét của khách sau khi trả phòng.', manage: true },
-  ].filter((l) => !l.manage || !isRecep)
-
   return (
     <>
       <h1 className="ov-hello">Xin chào, {user?.fullName}</h1>
@@ -55,12 +47,15 @@ export default function OverviewPage() {
         {' · '}{scope}
       </p>
 
-      <div className="grid">
+      <div className="ov-heading"><h2>Hoạt động hiện tại</h2><Link to="/dashboard/rooms">Xem sơ đồ phòng →</Link></div>
+      {rooms.isLoading && <p role="status">Đang tải tình trạng phòng...</p>}
+      {rooms.error && <p className="err" role="alert">Không tải được tình trạng phòng.</p>}
+      {!rooms.isLoading && !rooms.error && <div className="grid ov-metrics">
         <div className="card stat"><span className="dot Available" /> Phòng sẵn sàng<div className="price">{count('Available')}</div></div>
         <div className="card stat"><span className="dot Occupied" /> Đang có khách<div className="price">{count('Occupied')}</div></div>
         <div className="card stat"><span className="dot Dirty" /> Cần dọn<div className="price">{count('Dirty')}</div></div>
-        <div className="card stat">Công suất<div className="price">{occupancy}%</div></div>
-      </div>
+        <div className="card stat">Công suất hiện tại<div className="price">{occupancy}%</div></div>
+      </div>}
 
       {!isRecep && report.data && (
         <p className="mut">
@@ -69,8 +64,10 @@ export default function OverviewPage() {
         </p>
       )}
 
-      <h2 className="ov-title">Cần xử lý hôm nay</h2>
-      <div className="todo">
+      <div className="ov-heading"><h2>Cần xử lý hôm nay</h2><Link to="/dashboard/reservations">Xem đơn đặt phòng →</Link></div>
+      {res.isLoading && <p role="status">Đang tải đơn đặt phòng...</p>}
+      {res.error && <p className="err" role="alert">Không tải được đơn đặt phòng.</p>}
+      {!res.isLoading && !res.error && <div className="todo">
         {todo.map((x) => (
           <Link key={x.label} to={x.to} className={`todo-card ${x.n === 0 ? 'zero' : ''}`}>
             <b>{x.n}</b>
@@ -78,18 +75,7 @@ export default function OverviewPage() {
             <em>{x.n === 0 ? 'Không có việc tồn đọng' : 'Xử lý ngay →'}</em>
           </Link>
         ))}
-      </div>
-
-      <h2 className="ov-title">Chức năng</h2>
-      <div className="todo">
-        {links.map((l) => (
-          <Link key={l.to} to={l.to} className="todo-card">
-            <strong>{l.title}</strong>
-            <span>{l.text}</span>
-            <em>Mở →</em>
-          </Link>
-        ))}
-      </div>
+      </div>}
     </>
   )
 }

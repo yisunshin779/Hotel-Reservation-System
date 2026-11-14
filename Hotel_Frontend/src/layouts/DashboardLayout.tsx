@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/auth'
 import PageTransition from '../components/PageTransition'
@@ -13,7 +13,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const GROUPS = [
   {
-    title: 'Vận hành', adminOnly: false,
+    title: 'Vận hành khách sạn', adminOnly: false,
     items: [
       { to: '/dashboard', label: 'Tổng quan', end: true },
       { to: '/dashboard/rooms', label: 'Sơ đồ phòng' },
@@ -46,9 +46,6 @@ export default function DashboardLayout() {
   const [open, setOpen] = useState(false)
   const canManage = user?.role === 'manager' || user?.role === 'admin'
 
-  // Chuyển trang thì tự đóng ngăn kéo trên điện thoại
-  useEffect(() => { setOpen(false) }, [pathname])
-
   return (
     <div className="dsh">
     <TopProgress />
@@ -66,7 +63,7 @@ export default function DashboardLayout() {
             <div className="dsh-group">{g.title}</div>
             <nav>
               {g.items.map((i) => (
-                <NavLink key={i.to} to={i.to} end={i.end}>{i.label}</NavLink>
+                <NavLink key={i.to} to={i.to} end={i.end} onClick={() => setOpen(false)}>{i.label}</NavLink>
               ))}
             </nav>
           </div>
@@ -82,7 +79,7 @@ export default function DashboardLayout() {
               <small>{ROLE_LABEL[user?.role ?? 'guest']}</small>
             </div>
           </div>
-          <Link to="/profile" className="btn">Hồ sơ cá nhân</Link>
+          <Link to="/profile" className="btn" onClick={() => setOpen(false)}>Hồ sơ cá nhân</Link>
           <button className="btn" onClick={() => { logout(); navigate('/login') }}>Đăng xuất</button>
         </div>
       </aside>

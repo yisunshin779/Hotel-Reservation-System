@@ -3,11 +3,16 @@ import PublicLayout from './layouts/PublicLayout'
 import DashboardLayout from './layouts/DashboardLayout'
 import RequireRole from './components/RequireRole'
 import HomePage from './pages/HomePage'
-import AboutPage from './pages/AboutPage'
+import AboutPage from './pages/AboutExperiencePage'
 import BranchesPage from './pages/BranchesPage'
 import RoomsPage from './pages/RoomsPage'
 import RoomDetailPage from './pages/RoomDetailPage'
 import SearchPage from './pages/SearchPage'
+import GuestGuidePage from './pages/GuestGuidePage'
+import AmenitiesPage from './pages/AmenitiesPage'
+import AmenityDetailPage from './pages/AmenityDetailPage'
+import AmenityBookingPage from './pages/AmenityBookingPage'
+import MyAmenitiesPage from './pages/MyAmenitiesPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -32,6 +37,9 @@ export default function App() {
         <Route path="rooms" element={<RoomsPage />} />
         <Route path="rooms/:id" element={<RoomDetailPage />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="guide" element={<GuestGuidePage />} />
+        <Route path="amenities" element={<AmenitiesPage />} />
+        <Route path="amenities/:id" element={<AmenityDetailPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
@@ -44,6 +52,8 @@ export default function App() {
           <Route path="book" element={<BookingPage />} />
           <Route path="pay/:id" element={<PaymentPage />} />
           <Route path="my-bookings" element={<MyBookingsPage />} />
+          <Route path="amenities/:id/book" element={<AmenityBookingPage />} />
+          <Route path="my-amenities" element={<MyAmenitiesPage />} />
         </Route>
       </Route>
 

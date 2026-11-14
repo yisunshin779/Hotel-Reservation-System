@@ -32,21 +32,18 @@ function Counter({ to, decimals = 0, suffix = '' }: { to: number; decimals?: num
 
 const STATS = [
   { to: 3, label: 'Chi nhánh', suffix: '' },
-  { to: 180, label: 'Phòng nghỉ', suffix: '' },
-  { to: 10000, label: 'Khách đã đặt phòng', suffix: '+' },
-  { to: 4.8, label: 'Điểm đánh giá', suffix: '/5', decimals: 1 },
 ]
 
 const VALUES = [
-  { icon: 'check', title: 'Phòng trống thời gian thực', text: 'Xem ngay phòng còn trống và giá chính xác theo ngày bạn chọn.' },
-  { icon: 'check', title: 'Hủy miễn phí', text: 'Được hủy hoặc đổi đơn miễn phí trước 48 giờ nhận phòng.' },
-  { icon: 'check', title: 'Ưu đãi thành viên', text: 'Nhập mã khuyến mãi khi đặt phòng để được giảm giá ngay.' },
+  { icon: 'check', title: 'Thông tin rõ ràng', text: 'Xem hạng phòng, ngày ở và giá trước khi xác nhận đặt phòng.' },
+  { icon: 'check', title: 'Quản lý đơn dễ dàng', text: 'Theo dõi đơn và trạng thái thanh toán ngay trong tài khoản.' },
+  { icon: 'check', title: 'Dịch vụ tại khách sạn', text: 'Nhân viên lễ tân hỗ trợ nhu cầu phát sinh trong kỳ lưu trú.' },
 ]
 
 const QUOTES = [
-  { text: 'Phòng sạch sẽ, nhân viên thân thiện, đặt phòng chỉ mất vài phút.', who: 'Minh Anh, Hà Nội' },
-  { text: 'Giá rõ ràng, không phát sinh. Gia đình mình rất hài lòng với phòng Deluxe.', who: 'Quốc Bảo, Đà Nẵng' },
-  { text: 'Hủy đơn dễ dàng khi đổi lịch, đây là điều mình thích nhất.', who: 'Thu Hà, TP.HCM' },
+  { text: 'Chọn điểm đến phù hợp với hành trình của bạn.', who: 'Hà Nội' },
+  { text: 'Khám phá các hạng phòng và tiện nghi trước khi đặt.', who: 'Đà Nẵng' },
+  { text: 'Theo dõi đơn đặt phòng ngay trong tài khoản.', who: 'TP.HCM' },
 ]
 
 // Lời khen tự chuyển mỗi 4 giây (chỉ chạy khi tab này đang mở)
@@ -60,7 +57,7 @@ function Voices() {
   return (
     <div className="quote-box">
       <p key={q} className="quote">“{QUOTES[q].text}”</p>
-      <span className="quote-who">— {QUOTES[q].who}</span>
+      <span className="quote-who">{QUOTES[q].who}</span>
       <div className="dots">
         {QUOTES.map((_, i) => (
           <button key={i} className={i === q ? 'on' : ''} onClick={() => setQ(i)} aria-label={`Lời khen ${i + 1}`} />
@@ -74,7 +71,7 @@ type Tab = 'story' | 'values' | 'voices'
 const TABS: { key: Tab; label: string }[] = [
   { key: 'story', label: 'Câu chuyện' },
   { key: 'values', label: 'Giá trị' },
-  { key: 'voices', label: 'Khách nói gì' },
+  { key: 'voices', label: 'Khám phá' },
 ]
 
 export default function AboutPage() {
@@ -91,7 +88,7 @@ export default function AboutPage() {
       <div className="stats flat">
         {STATS.map((s) => (
           <div className="stat-item" key={s.label}>
-            <b><Counter to={s.to} decimals={s.decimals} suffix={s.suffix} /></b>
+            <b><Counter to={s.to} suffix={s.suffix} /></b>
             <span>{s.label}</span>
           </div>
         ))}

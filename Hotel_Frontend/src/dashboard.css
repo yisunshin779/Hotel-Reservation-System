@@ -40,6 +40,11 @@
 .ov-hello { margin: 0 0 4px; }
 .ov-sub { margin: 0 0 22px; color: var(--mut); }
 .ov-title { margin: 26px 0 12px; font-size: 16px; }
+.ov-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 12px; }
+.ov-heading h2 { margin: 0; font-size: 18px; }
+.ov-heading a { color: var(--pri); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ov-heading a:hover { text-decoration: underline; }
+.ov-metrics { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 .todo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
 .todo-card {
   display: flex; flex-direction: column; gap: 4px; padding: 18px; color: var(--ink);

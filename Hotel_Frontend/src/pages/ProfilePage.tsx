@@ -47,7 +47,7 @@ export default function ProfilePage() {
   return (
     <div className="home">
       <div className="home-body detail-body">
-        <div className="profile-head">
+        <div className="profile-head motion-profile-head">
           <div className="avatar">{user.fullName.trim().charAt(0).toUpperCase()}</div>
           <div>
             <h1 className="detail-title" style={{ margin: 0 }}>{user.fullName}</h1>
@@ -55,8 +55,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="profile-grid">
-          <form className="panel" onSubmit={submitProfile}>
+        <div className="profile-grid motion-stagger">
+          <form className="panel motion-profile-panel" onSubmit={submitProfile}>
             <h2>{t('Thông tin cá nhân')}</h2>
             <label>
               {t('Họ và tên')}
@@ -78,7 +78,7 @@ export default function ProfilePage() {
             </button>
           </form>
 
-          <form className="panel" onSubmit={submitPassword}>
+          <form className="panel motion-profile-panel" onSubmit={submitPassword}>
             <h2>{t('Đổi mật khẩu')}</h2>
             <label>
               {t('Mật khẩu hiện tại')}

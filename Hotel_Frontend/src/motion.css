@@ -210,3 +210,33 @@ label:focus-within, .home label:focus-within, .auth-form label:focus-within { co
   .page-head .crumbs, .page-head h1, .page-head p, .gal-emoji, .gal-cap { animation: none !important; }
   .topbar { display: none; }
 }
+
+/* Chi nhánh, tìm phòng và hồ sơ */
+.motion-stagger > * { animation: mList .65s var(--ease-ios) backwards; animation-delay: calc(var(--i) * 90ms); }
+.branch-card { transition: transform .45s var(--spring), box-shadow .35s var(--ease-ios), border-color .25s; }
+.branch-card:hover { border-color: #d5ae7e; }
+.branch-card .branch-landmark { transition: transform .4s var(--spring), background .25s; }
+.branch-card:hover .branch-landmark { transform: translateY(-4px); background: rgba(35,27,19,.72); }
+.branch-card .branch-cta span { transition: transform .35s var(--spring); }
+.branch-card .branch-cta:hover span { transform: translateX(4px); }
+
+.motion-search { animation: mSearchIn .7s var(--ease-ios) backwards; }
+.motion-search > label, .motion-search > button { animation: mList .55s var(--ease-ios) backwards; animation-delay: calc(90ms + var(--i) * 55ms); }
+@keyframes mSearchIn { from { opacity: 0; transform: translateY(18px) scale(.985); } }
+.motion-search:focus-within { box-shadow: 0 14px 36px rgba(90,60,20,.12); }
+.motion-search .search-btn { transition: transform .35s var(--spring), box-shadow .25s, background .2s; }
+.motion-search .search-btn:active:not(:disabled) { transform: scale(.97); }
+.motion-stagger.results > .room-card { animation: mList .6s var(--ease-ios) backwards; animation-delay: calc(var(--i) * 85ms); }
+
+.motion-profile-head { animation: mSearchIn .6s var(--ease-ios) backwards; }
+.motion-profile-head .avatar { transition: transform .5s var(--spring), box-shadow .3s; }
+.motion-profile-head:hover .avatar { transform: scale(1.06) rotate(-4deg); box-shadow: 0 9px 22px rgba(90,60,20,.2); }
+.motion-profile-panel { transition: transform .45s var(--spring), box-shadow .3s var(--ease-ios), border-color .3s; }
+.motion-profile-panel:focus-within { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(90,60,20,.11); border-color: #d5ae7e; }
+.motion-profile-panel .ok-msg { animation: mPop .45s var(--spring) both; }
+@media (prefers-reduced-motion: reduce) {
+  .motion-stagger > *, .motion-search, .motion-search > label, .motion-search > button,
+  .motion-stagger.results > .room-card, .motion-profile-head, .motion-profile-panel .ok-msg { animation: none !important; }
+  .branch-card, .branch-card .branch-landmark, .branch-card .branch-cta span,
+  .motion-search, .motion-profile-head .avatar, .motion-profile-panel { transition: none !important; }
+}

@@ -18,10 +18,12 @@ export default function SearchPage() {
   // Từ trang Chi nhánh bấm sang thì chọn sẵn chi nhánh và tìm luôn
   const presetBranch = (useLocation().state as { branchId?: string } | null)?.branchId ?? ''
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
-  const [p, setP] = useState<SearchParams>({
-    branchId: presetBranch, checkIn: today(), checkOut: tomorrow, adults: 2, children: 0, rooms: 1,
-  })
+  const [p, setP] = useState<SearchParams>(() => ({
+    branchId: presetBranch,
+    checkIn: today(),
+    checkOut: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    adults: 2, children: 0, rooms: 1,
+  }))
   // Đã bấm tìm ít nhất một lần chưa. Sau đó kết quả tự cập nhật theo form
   const [searched, setSearched] = useState(!!presetBranch)
 
@@ -63,7 +65,7 @@ export default function SearchPage() {
         crumbs={[{ to: '/', label: 'Trang chủ' }, { label: 'Tìm phòng' }]}
       />
 
-      <form className="search-card flat" onSubmit={handleSubmit}>
+      <form className="search-card flat motion-search" onSubmit={handleSubmit}>
         <label>
           Chi nhánh
           <select required value={p.branchId} onChange={(e) => update('branchId', e.target.value)}>
@@ -108,7 +110,7 @@ export default function SearchPage() {
       {ready && !!result.data?.length && (
         <>
           <h2 className="section-title">{result.data.length} hạng phòng · {nights} đêm</h2>
-          <div className={`results ${result.isFetching ? 'updating' : ''}`}>
+          <div className={`results motion-stagger ${result.isFetching ? 'updating' : ''}`}>
             {result.data.map((a) => {
               const look = LOOK[a.roomType.name] ?? { emoji: '🛏️', cls: 'v1' }
               return (
