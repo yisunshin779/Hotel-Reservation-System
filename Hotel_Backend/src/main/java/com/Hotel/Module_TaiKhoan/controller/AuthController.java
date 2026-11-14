@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.Hotel.Module_TaiKhoan.dto.AuthResponseDTO;
+import com.Hotel.Module_TaiKhoan.dto.LoginRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.RegistrationRequestDTO;
 import com.Hotel.Module_TaiKhoan.service.AuthService;
 
@@ -37,5 +39,19 @@ public class AuthController {
                     "status", "success",
                     "message", "Đăng ký thành công! Hệ thống đang chờ xác thực email."
                 ));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequestDTO request) {
+    
+    // Gọi Service xử lý logic và nhận hộp DTO chứa Token
+        AuthResponseDTO response = authService.login(request);
+    
+    // Trả Token về cho React
+        return ResponseEntity.ok(Map.of(
+            "status", "success",
+            "message", "Đăng nhập thành công!",
+            "data", response
+        ));
     }
 }
