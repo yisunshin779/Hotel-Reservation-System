@@ -2,7 +2,14 @@ package com.Hotel.Module_TaiKhoan.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "account")
@@ -55,6 +62,38 @@ public class Account {
         this.thoiGianTao = LocalDateTime.now();
     }
 
-    // --- BẠN HÃY GENERATE CÁC HÀM GETTER VÀ SETTER CHO CÁC TRƯỜNG Ở ĐÂY ---
-    // Ví dụ: public String getEmail() { return email; } ...
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public String getHoTen() { return hoTen; }
+    public void setHoTen(String hoTen) { this.hoTen = hoTen; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getSoDienThoai() { return soDienThoai; }
+    public void setSoDienThoai(String soDienThoai) { this.soDienThoai = soDienThoai; }
+
+    public String getCccd() { return cccd; }
+    public void setCccd(String cccd) { this.cccd = cccd; }
+
+    public String getMatKhau() { return matKhau; }
+    public void setMatKhau(String matKhau) { this.matKhau = matKhau; }
+
+    public String getAuthProvider() { return authProvider; }
+    public void setAuthProvider(String authProvider) { this.authProvider = authProvider; }
+
+    public String getVaiTro() { return vaiTro; }
+    public void setVaiTro(String vaiTro) { this.vaiTro = vaiTro; }
+
+    public String getTrangThai() { return trangThai; }
+    public void setTrangThai(String trangThai) { this.trangThai = trangThai; }
+
+    public int getSoLanDangNhapSai() { return soLanDangNhapSai; }
+    public void setSoLanDangNhapSai(int soLanDangNhapSai) { this.soLanDangNhapSai = soLanDangNhapSai; }
+
+    public LocalDateTime getThoiGianKhoa() { return thoiGianKhoa; }
+    public void setThoiGianKhoa(LocalDateTime thoiGianKhoa) { this.thoiGianKhoa = thoiGianKhoa; }
+
+    public LocalDateTime getThoiGianTao() { return thoiGianTao; }
 }
