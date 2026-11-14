@@ -2,7 +2,16 @@ package com.Hotel.Module_TaiKhoan.entity;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "verification_token")
@@ -28,5 +37,18 @@ public class VerificationToken {
 
     public VerificationToken() {}
 
-    // --- GENERATE GETTER VÀ SETTER Ở ĐÂY ---
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public String getToken() { return token; }
+    public void setToken(String token) { this.token = token; }
+
+    public Account getAccount() { return account; }
+    public void setAccount(Account account) { this.account = account; }
+
+    public String getLoaiToken() { return loaiToken; }
+    public void setLoaiToken(String loaiToken) { this.loaiToken = loaiToken; }
+
+    public LocalDateTime getNgayHetHan() { return ngayHetHan; }
+    public void setNgayHetHan(LocalDateTime ngayHetHan) { this.ngayHetHan = ngayHetHan; }
 }
