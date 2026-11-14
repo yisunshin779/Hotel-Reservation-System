@@ -2,8 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
 import { BranchApi, RoomTypeApi, SearchApi } from '../api/hotel'
+import PageHead from '../components/PageHead'
+import RoomReviews from '../components/RoomReviews'
 import { useAuth } from '../store/auth'
 import { nightsBetween, today, vnd } from '../lib'
 import type { SearchParams } from '../types'
@@ -40,24 +41,34 @@ const EXTRA: Record<string, {
   },
 }
 
+type Tab = 'overview' | 'amenities' | 'pricing' | 'reviews'
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'overview', label: 'Tổng quan' },
+  { key: 'amenities', label: 'Tiện nghi' },
+  { key: 'pricing', label: 'Giá & chính sách' },
+  { key: 'reviews', label: 'Đánh giá' },
+]
+
 export default function RoomDetailPage() {
-  const { t } = useTranslation()
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const user = useAuth((s) => s.user)
-    // Lựa chọn từ trang tìm kiếm; nếu khách vừa đi đăng nhập về thì lấy bản đã lưu tạm
-  const saved = sessionStorage.getItem('hrs-detail-search')
-  const preset =
-    (useLocation().state as { search?: SearchParams } | null)?.search ??
-    (saved ? (JSON.parse(saved) as SearchParams) : undefined)
 
   const room = useQuery({ queryKey: ['room-type', id], queryFn: () => RoomTypeApi.get(id) })
   const branches = useQuery({ queryKey: ['branches'], queryFn: BranchApi.list })
+
+  // Lựa chọn từ trang tìm kiếm; nếu khách vừa đi đăng nhập về thì lấy bản đã lưu tạm
+  const saved = sessionStorage.getItem('hrs-detail-search')
+  const preset =
+    (location.state as { search?: SearchParams } | null)?.search ??
+    (saved ? (JSON.parse(saved) as SearchParams) : undefined)
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const [p, setP] = useState<SearchParams>(
     preset ?? { branchId: '', checkIn: today(), checkOut: tomorrow, adults: 2, children: 0, rooms: 1 }
   )
+  const [tab, setTab] = useState<Tab>('overview')
   const [shot, setShot] = useState(0)
 
   // Kiểm tra còn phòng với lựa chọn của khách rồi chuyển sang trang đặt phòng
@@ -79,8 +90,7 @@ export default function RoomDetailPage() {
     p.checkIn < today() ? 'Ngày nhận phòng không được ở quá khứ.'
     : nights < 1 ? 'Ngày trả phòng phải sau ngày nhận phòng.'
     : ''
-
-   const countError =
+  const countError =
     p.adults < 1 || p.rooms < 1 || p.rooms > 5 || p.children < 0
       ? 'Số người lớn từ 1, số phòng từ 1 đến 5.'
       : ''
@@ -102,7 +112,7 @@ export default function RoomDetailPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (dateError || !p.branchId) return
+    if (dateError || countError || !p.branchId) return
     // Chưa đăng nhập thì đưa đi đăng nhập, xong quay lại đúng trang này
     if (!user) {
       sessionStorage.setItem('hrs-detail-search', JSON.stringify(p))
@@ -112,15 +122,13 @@ export default function RoomDetailPage() {
     check.mutate(p)
   }
 
-  if (room.isLoading) return <div className="home"><div className="home-body detail-body">{t('Đang tải...')}</div></div>
+  if (room.isLoading) return <p>Đang tải...</p>
   if (room.error || !room.data) {
     return (
-      <div className="home">
-        <div className="home-body detail-body">
-          <p className="err">{t((room.error as Error)?.message ?? 'Không tìm thấy hạng phòng.')}</p>
-          <Link to="/search">{t('← Quay lại tìm phòng')}</Link>
-        </div>
-      </div>
+      <>
+        <p className="err">{(room.error as Error)?.message ?? 'Không tìm thấy hạng phòng.'}</p>
+        <Link to="/rooms">← Quay lại danh sách hạng phòng</Link>
+      </>
     )
   }
 
@@ -128,147 +136,159 @@ export default function RoomDetailPage() {
   const ex = EXTRA[r.name] ?? EXTRA.Standard
 
   return (
-    <div className="home">
-      <div className="home-body detail-body">
-        <div className="crumbs">
-          <Link to="/">{t('Trang chủ')}</Link> › <Link to="/search">{t('Tìm phòng')}</Link> › {r.name}
+    <>
+      <PageHead
+        title={r.name}
+        sub={r.description}
+        crumbs={[{ to: '/', label: 'Trang chủ' }, { to: '/rooms', label: 'Hạng phòng' }, { label: r.name }]}
+      />
+
+      <div className="detail-grid">
+        <div>
+          <div className="utabs" role="tablist">
+            {TABS.map((x) => (
+              <button key={x.key} role="tab" className={`utab ${tab === x.key ? 'on' : ''}`} onClick={() => setTab(x.key)}>
+                {x.label}
+              </button>
+            ))}
+          </div>
+          <div key={tab} className="tab-anim">
+          {tab === 'overview' && (
+            <>
+              <div className={`gal-main rv ${ex.cls}`}>
+                <span className="gal-emoji" key={shot}>{ex.shots[shot].emoji}</span>
+                <span className="gal-cap">{ex.shots[shot].label}</span>
+              </div>
+              <div className="gal-thumbs">
+                {ex.shots.map((s, i) => (
+                  <button key={s.label} type="button" className={i === shot ? 'on' : ''} onClick={() => setShot(i)}>
+                    <span>{s.emoji}</span>
+                    <small>{s.label}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="specs" style={{ marginTop: 16 }}>
+                <div><small>Diện tích</small><b>{ex.size}</b></div>
+                <div><small>Giường</small><b>{ex.bed}</b></div>
+                <div><small>Sức chứa</small><b>Tối đa {r.capacity} người</b></div>
+                <div><small>Tầm nhìn</small><b>{ex.view}</b></div>
+              </div>
+            </>
+          )}
+
+          {tab === 'amenities' && (
+            <div className="panel amen">
+              {ex.features.map((f) => <div key={f}>✓ {f}</div>)}
+            </div>
+          )}
+
+          {tab === 'pricing' && (
+            <>
+              <h2 className="section-title" style={{ marginTop: 0 }}>Bảng giá theo mùa (mỗi đêm)</h2>
+              <div className="panel wrap">
+                <table>
+                  <thead><tr><th>Ngày thường</th><th>Cuối tuần (T6, T7)</th><th>Lễ, Tết</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><b>{vnd(r.basePrice)}</b></td>
+                      <td><b>{vnd(Math.round(r.basePrice * 1.15))}</b></td>
+                      <td><b>{vnd(Math.round(r.basePrice * 1.4))}</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h2 className="section-title">Chính sách</h2>
+              <div className="panel policy">
+                <div>Nhận phòng từ <b>14:00</b>, trả phòng trước <b>12:00</b></div>
+                <div>Hủy miễn phí trước <b>48 giờ</b> nhận phòng</div>
+                <div>Phòng không hút thuốc</div>
+                <div>Có thể kê thêm giường phụ theo yêu cầu (có phụ phí)</div>
+              </div>
+            </>
+          )}
+
+          {tab === 'reviews' && <RoomReviews roomName={r.name} />}
+          </div>
         </div>
 
-        <div className="detail-grid">
-          {/* Cột trái: thông tin */}
-          <div>
-            <div className={`gal-main rv ${ex.cls}`}>
-              <span className="gal-emoji" key={shot}>{ex.shots[shot].emoji}</span>
-              <span className="gal-cap">{t(ex.shots[shot].label)}</span>
-            </div>
-            <div className="gal-thumbs">
-              {ex.shots.map((s, i) => (
-                <button key={s.label} type="button" className={i === shot ? 'on' : ''} onClick={() => setShot(i)}>
-                  <span>{s.emoji}</span>
-                  <small>{t(s.label)}</small>
-                </button>
-              ))}
-            </div>
+        {/* Khung đặt phòng luôn nằm bên phải */}
+        <form className="panel book-box" onSubmit={handleSubmit}>
+          <div className="price">{vnd(r.basePrice)} <small>/ đêm</small></div>
+          <small className="note">Giá từ, tính theo ngày thường</small>
 
-            <h1 className="detail-title">{r.name}</h1>
-            <p className="detail-desc">{t(r.description)}</p>
-
-            <div className="specs">
-              <div><span>📐</span><b>{ex.size}</b><small>{t('Diện tích')}</small></div>
-              <div><span>🛏️</span><b>{t(ex.bed)}</b><small>{t('Giường')}</small></div>
-              <div><span>👥</span><b>{t('Tối đa {{n}} người', { n: r.capacity })}</b><small>{t('Sức chứa')}</small></div>
-              <div><span>🪟</span><b>{t(ex.view)}</b><small>{t('Tầm nhìn')}</small></div>
+          {preset?.branchId ? (
+            <div className="branch-locked">
+              Chi nhánh: <b>{branches.data?.find((b) => b.branchId === p.branchId)?.name ?? ''}</b>
             </div>
+          ) : (
+            <label>
+              Chi nhánh
+              <select required value={p.branchId} onChange={(e) => update('branchId', e.target.value)}>
+                <option value="">-- Chọn chi nhánh --</option>
+                {branches.data?.map((b) => <option key={b.branchId} value={b.branchId}>{b.name}</option>)}
+              </select>
+            </label>
+          )}
 
-            <h2 className="section-title">{t('Tiện nghi trong phòng')}</h2>
-            <div className="panel amen">
-              {ex.features.map((f) => <div key={f}>✓ {t(f)}</div>)}
-            </div>
-
-            <h2 className="section-title">{t('Bảng giá theo mùa (mỗi đêm)')}</h2>
-            <div className="panel wrap">
-              <table>
-                <thead>
-                  <tr><th>{t('Ngày thường')}</th><th>{t('Cuối tuần (T6, T7)')}</th><th>{t('Lễ, Tết')}</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><b>{vnd(r.basePrice)}</b></td>
-                    <td><b>{vnd(Math.round(r.basePrice * 1.15))}</b></td>
-                    <td><b>{vnd(Math.round(r.basePrice * 1.4))}</b></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 className="section-title">{t('Chính sách')}</h2>
-            <div className="panel policy">
-              <div>🕑 {t('Nhận phòng từ 14:00, trả phòng trước 12:00')}</div>
-              <div>🛡️ {t('Hủy miễn phí trước 48 giờ nhận phòng')}</div>
-              <div>🚭 {t('Phòng không hút thuốc')}</div>
-              <div>👶 {t('Có thể kê thêm giường phụ theo yêu cầu (có phụ phí)')}</div>
-            </div>
+          <div className="two">
+            <label>
+              Nhận phòng
+              <input type="date" min={today()} value={p.checkIn} onChange={(e) => update('checkIn', e.target.value)} />
+            </label>
+            <label>
+              Trả phòng
+              <input type="date" min={p.checkIn} value={p.checkOut} onChange={(e) => update('checkOut', e.target.value)} />
+            </label>
+          </div>
+          <div className="three">
+            <label>
+              Người lớn
+              <input type="number" min={1} value={p.adults} onChange={(e) => update('adults', +e.target.value)} />
+            </label>
+            <label>
+              Trẻ em
+              <input type="number" min={0} value={p.children} onChange={(e) => update('children', +e.target.value)} />
+            </label>
+            <label>
+              Số phòng
+              <input type="number" min={1} max={5} value={p.rooms} onChange={(e) => update('rooms', +e.target.value)} />
+            </label>
           </div>
 
-          {/* Cột phải: đặt phòng */}
-          <form className="panel book-box" onSubmit={handleSubmit}>
-            <div className="price">{vnd(r.basePrice)} <small>{t('/ đêm')}</small></div>
-            <small className="note">{t('Giá từ, tính theo ngày thường')}</small>
+          {(dateError || countError) && <p className="err">{dateError || countError}</p>}
 
-                        {preset?.branchId ? (
-              <div className="branch-locked">
-                📍 {t('Chi nhánh')}: <b>{t(branches.data?.find((b) => b.branchId === p.branchId)?.name ?? '')}</b>
-              </div>
-            ) : (
-              <label>
-                📍 {t('Chi nhánh')}
-                <select required value={p.branchId} onChange={(e) => update('branchId', e.target.value)}>
-                  <option value="">{t('-- Chọn chi nhánh --')}</option>
-                  {branches.data?.map((b) => <option key={b.branchId} value={b.branchId}>{t(b.name)}</option>)}
-                </select>
-              </label>
-            )}
-            <div className="two">
-              <label>
-                {t('Nhận phòng')}
-                <input type="date" min={today()} value={p.checkIn} onChange={(e) => update('checkIn', e.target.value)} />
-              </label>
-              <label>
-                {t('Trả phòng')}
-                <input type="date" min={p.checkIn} value={p.checkOut} onChange={(e) => update('checkOut', e.target.value)} />
-              </label>
+          {ready && (
+            <div className={`q-total ${quote.isFetching ? 'updating' : ''}`}>
+              {quoted && (
+                <>
+                  <div className="q-row">
+                    <span>{nights} đêm × {p.rooms} phòng</span>
+                    <b className="price">{vnd(quoted.total)}</b>
+                  </div>
+                  <small className={quoted.available <= 3 ? 'err' : 'note'}>
+                    {quoted.available <= 3 ? `Chỉ còn ${quoted.available} phòng` : `Còn ${quoted.available} phòng`}
+                  </small>
+                </>
+              )}
+              {soldOut && (
+                <p className="err" style={{ margin: 0 }}>
+                  Hạng phòng này không còn đủ chỗ cho lựa chọn của bạn. Hãy thử đổi ngày hoặc số phòng.
+                </p>
+              )}
             </div>
-            <div className="three">
-              <label>
-                {t('Người lớn')}
-                <input type="number" min={1} value={p.adults} onChange={(e) => update('adults', +e.target.value)} />
-              </label>
-              <label>
-                {t('Trẻ em')}
-                <input type="number" min={0} value={p.children} onChange={(e) => update('children', +e.target.value)} />
-              </label>
-              <label>
-                {t('Số phòng')}
-                <input type="number" min={1} max={5} value={p.rooms} onChange={(e) => update('rooms', +e.target.value)} />
-              </label>
-            </div>
+          )}
 
-                        {(dateError || countError) && <p className="err">{t(dateError || countError)}</p>}
+          {check.error && <p className="err">{(check.error as Error).message}</p>}
 
-            {ready && (
-              <div className={`q-total ${quote.isFetching ? 'updating' : ''}`}>
-                {quoted && (
-                  <>
-                    <div className="q-row">
-                      <span>{t('{{nights}} đêm × {{rooms}} phòng', { nights, rooms: p.rooms })}</span>
-                      <b className="price">{vnd(quoted.total)}</b>
-                    </div>
-                    <small className={quoted.available <= 3 ? 'err' : 'note'}>
-                      {quoted.available <= 3
-                        ? t('Chỉ còn {{n}} phòng', { n: quoted.available })
-                        : t('Còn {{n}} phòng', { n: quoted.available })}
-                    </small>
-                  </>
-                )}
-                {soldOut && (
-                  <p className="err" style={{ margin: 0 }}>
-                    {t('Hạng phòng này không còn đủ chỗ cho lựa chọn của bạn. Hãy thử đổi ngày hoặc số phòng.')}
-                  </p>
-                )}
-              </div>
-            )}
-            {check.error && <p className="err">{t((check.error as Error).message)}</p>}
-
-            <button
-              className="btn primary shine"
-              disabled={check.isPending || !!dateError || !!countError || !p.branchId || soldOut || quote.isFetching}
-            >
-              {check.isPending ? t('Đang kiểm tra...') : user ? t('Đặt phòng') : t('Đăng nhập để đặt phòng')}
-            </button>
-            <small className="note">{t('Chưa bị tính phí. Bạn xem lại tổng tiền ở bước sau.')}</small>
-          </form>
-        </div>
+          <button
+            className="btn primary"
+            disabled={check.isPending || !!dateError || !!countError || !p.branchId || soldOut || quote.isFetching}
+          >
+            {check.isPending ? 'Đang kiểm tra...' : user ? 'Đặt phòng' : 'Đăng nhập để đặt phòng'}
+          </button>
+          <small className="note">Chưa bị tính phí. Bạn xem lại tổng tiền ở bước sau.</small>
+        </form>
       </div>
-    </div>
+    </>
   )
 }

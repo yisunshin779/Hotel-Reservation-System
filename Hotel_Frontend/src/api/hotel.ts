@@ -1,4 +1,4 @@
-import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem } from '../types'
+import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem, Review } from '../types'
 import { api } from './client'
 import { nightsBetween, today } from '../lib'
 
@@ -440,6 +440,10 @@ export const ReportApi = {
 
 // ---------- Chi tiết hạng phòng ----------
 export const RoomTypeApi = {
+  async list(): Promise<RoomType[]> {
+    if (USE_MOCK) return MOCK_ROOM_TYPES.map((x) => x.type)
+    return (await api.get('/room-types')).data
+  },
   async get(id: string): Promise<RoomType> {
     if (USE_MOCK) {
       const found = MOCK_ROOM_TYPES.find((x) => x.type.roomTypeId === id)
@@ -575,5 +579,66 @@ export const StayApi = {
       return
     }
     await api.post(`/staff/reservations/${id}/change-room`, { from, to })
+  },
+}
+
+// ---------- Đánh giá của khách ----------
+const REVIEW_KEY = 'hrs-mock-reviews'
+const loadReviews = (): Review[] => {
+  const raw = localStorage.getItem(REVIEW_KEY)
+  if (raw) return JSON.parse(raw)
+  // Vài đánh giá mẫu để trang chi tiết phòng và trang quản trị không bị trống
+  const day = 86400000
+  const seed: Review[] = [
+    { id: 's1', reservationId: 'seed', code: 'HRS-SEED1', guestName: 'Minh Anh', roomTypeName: 'Standard', rating: 5, comment: 'Phòng sạch sẽ, yên tĩnh, nhân viên nhiệt tình.', at: new Date(Date.now() - 9 * day).toISOString() },
+    { id: 's2', reservationId: 'seed', code: 'HRS-SEED2', guestName: 'Quốc Bảo', roomTypeName: 'Standard', rating: 4, comment: 'Giá hợp lý, wifi mạnh. Phòng hơi nhỏ một chút.', at: new Date(Date.now() - 6 * day).toISOString() },
+    { id: 's3', reservationId: 'seed', code: 'HRS-SEED3', guestName: 'Thu Hà', roomTypeName: 'Deluxe', rating: 5, comment: 'View thành phố rất đẹp về đêm, bồn tắm thoải mái.', at: new Date(Date.now() - 5 * day).toISOString() },
+    { id: 's4', reservationId: 'seed', code: 'HRS-SEED4', guestName: 'Văn Long', roomTypeName: 'Deluxe', rating: 3, comment: 'Phòng đẹp nhưng bữa sáng hơi đông, phải chờ lâu.', at: new Date(Date.now() - 3 * day).toISOString() },
+    { id: 's5', reservationId: 'seed', code: 'HRS-SEED5', guestName: 'Hoàng Yến', roomTypeName: 'Suite', rating: 5, comment: 'Phòng khách riêng rất sang, dịch vụ quản gia chu đáo.', at: new Date(Date.now() - 2 * day).toISOString() },
+  ]
+  localStorage.setItem(REVIEW_KEY, JSON.stringify(seed))
+  return seed
+}
+const saveReviews = (list: Review[]) => localStorage.setItem(REVIEW_KEY, JSON.stringify(list))
+
+export const ReviewApi = {
+  async create(reservationId: string, rating: number, comment: string): Promise<void> {
+    if (USE_MOCK) {
+      await wait(350)
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error('Vui lòng chọn số sao từ 1 đến 5.')
+      if (comment.trim().length > 500) throw new Error('Nhận xét tối đa 500 ký tự.')
+      const list = loadRes()
+      const res = list.find((x) => x.reservationId === reservationId)
+      if (!res) throw new Error('Không tìm thấy đơn đặt phòng.')
+      if (res.status !== 'CheckedOut') throw new Error('Chỉ đánh giá được sau khi đã trả phòng.')
+      if (res.reviewed) throw new Error('Bạn đã đánh giá đơn này rồi.')
+      saveReviews([
+        {
+          id: crypto.randomUUID(),
+          reservationId,
+          code: res.code,
+          guestName: res.guestName,
+          roomTypeName: res.roomTypeName,
+          rating,
+          comment: comment.trim(),
+          at: new Date().toISOString(),
+        },
+        ...loadReviews(),
+      ])
+      res.reviewed = true
+      saveRes(list)
+      return
+    }
+    await api.post(`/reservations/${reservationId}/review`, { rating, comment })
+  },
+
+  async list(): Promise<Review[]> {
+    if (USE_MOCK) return loadReviews()
+    return (await api.get('/reviews')).data
+  },
+
+  async byRoomType(name: string): Promise<Review[]> {
+    if (USE_MOCK) return loadReviews().filter((r) => r.roomTypeName === name)
+    return (await api.get('/reviews', { params: { roomType: name } })).data
   },
 }

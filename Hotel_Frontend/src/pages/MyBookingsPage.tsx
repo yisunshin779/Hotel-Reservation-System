@@ -1,16 +1,19 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { BookingApi } from '../api/hotel'
-import { vnd, STATUS_LABEL } from '../lib'
-
+import ReviewDialog from '../components/ReviewDialog'
+import { STATUS_LABEL, serviceTotal, vnd } from '../lib'
+import type { Reservation } from '../types'
+import ExitMount from '../components/ExitMount'
 
 export default function MyBookingsPage() {
   const queryClient = useQueryClient()
+  const [reviewing, setReviewing] = useState<Reservation | null>(null)
   const list = useQuery({ queryKey: ['my-reservations'], queryFn: BookingApi.mine })
 
   const cancel = useMutation({
     mutationFn: BookingApi.cancel,
-    // Hủy xong thì tải lại danh sách
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-reservations'] }),
   })
 
@@ -47,7 +50,7 @@ export default function MyBookingsPage() {
                   <td>{b.code}</td>
                   <td>{b.roomTypeName}{(b.quantity ?? 1) > 1 ? ` × ${b.quantity}` : ''}</td>
                   <td>{b.checkInDate} → {b.checkOutDate}</td>
-                  <td>{vnd(b.totalAmount)}</td>
+                  <td>{vnd(b.totalAmount + serviceTotal(b.services))}</td>
                   <td>{STATUS_LABEL[b.status]}</td>
                   <td>
                     {b.status === 'Pending' && (
@@ -64,6 +67,10 @@ export default function MyBookingsPage() {
                         Hủy
                       </button>
                     )}
+                    {b.status === 'CheckedOut' && !b.reviewed && (
+                      <button className="btn primary" onClick={() => setReviewing(b)}>⭐ Đánh giá</button>
+                    )}
+                    {b.status === 'CheckedOut' && b.reviewed && <span className="mut">✓ Đã đánh giá</span>}
                   </td>
                 </tr>
               ))}
@@ -71,6 +78,16 @@ export default function MyBookingsPage() {
           </table>
         </div>
       )}
+     <ExitMount>
+      {reviewing && (
+        <ReviewDialog
+          reservationId={reviewing.reservationId}
+          code={reviewing.code}
+          roomTypeName={reviewing.roomTypeName}
+          onClose={() => setReviewing(null)}
+        />
+      )}
+    </ExitMount>
     </>
   )
 }

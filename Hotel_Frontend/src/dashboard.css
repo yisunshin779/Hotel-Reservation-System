@@ -1,0 +1,86 @@
+/* ---------- Khung Dashboard nhân viên ---------- */
+.dsh { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; background: var(--bg); }
+.dsh-body { min-width: 0; display: flex; flex-direction: column; }
+
+.dsh-side {
+  position: sticky; top: 0; height: 100vh; z-index: 60; display: flex; flex-direction: column;
+  padding: 18px 12px; overflow-y: auto; background: #2b1f14; color: #e9dcc7;
+}
+.dsh-brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 14px; color: #fff; font: 700 17px var(--font); }
+.dsh-brand small { margin-left: auto; padding: 2px 9px; border-radius: 99px; background: #45352a; color: #e9dcc7; font: 500 11px var(--font); }
+.dsh-mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: #a8641f; color: #fff; font-size: 16px; }
+.dsh-group { margin: 16px 10px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #a8977e; }
+.dsh-side nav { display: flex; flex-direction: column; gap: 2px; }
+.dsh-side nav a {
+  display: block; padding: 9px 12px; border-radius: 8px; color: #e9dcc7;
+  transition: background 0.2s, color 0.2s, transform 0.3s var(--spring, ease);
+}
+.dsh-side nav a:hover { background: #3a2c1d; transform: translateX(2px); }
+.dsh-side nav a.active { background: #4a3622; color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #d9a066; }
+.dsh-spacer { flex: 1; min-height: 16px; }
+
+.dsh-user { padding: 12px; border-radius: 12px; background: #35281a; }
+.dsh-user-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.dsh-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #a8641f; color: #fff; font-weight: 700; flex: none; }
+.dsh-user b { display: block; color: #fff; font-size: 14px; line-height: 1.2; }
+.dsh-user small { color: #bfae95; }
+.dsh-user .btn { width: 100%; margin-top: 6px; background: transparent; color: #e9dcc7; border-color: #5a4630; }
+.dsh-user .btn:hover:not(:disabled) { background: #45352a; }
+
+.dsh-top {
+  position: sticky; top: 0; z-index: 30; height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 24px;
+  background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+}
+.dsh-crumb { font-weight: 600; flex: 1; }
+.dsh-burger { display: none; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); font-size: 18px; cursor: pointer; }
+.dsh-scrim { display: none; }
+.dsh-main { width: 100%; max-width: 1200px; margin: 0 auto; padding: 26px 24px 60px; }
+
+/* ---------- Trang Tổng quan ---------- */
+.ov-hello { margin: 0 0 4px; }
+.ov-sub { margin: 0 0 22px; color: var(--mut); }
+.ov-title { margin: 26px 0 12px; font-size: 16px; }
+.todo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.todo-card {
+  display: flex; flex-direction: column; gap: 4px; padding: 18px; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  transition: transform 0.3s var(--spring, ease), box-shadow 0.25s, border-color 0.25s;
+}
+.todo-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(90, 60, 20, 0.12); border-color: #d9a066; }
+.todo-card b { font: 700 30px var(--font); color: var(--pri); line-height: 1.1; }
+.todo-card span { color: var(--mut); font-size: 14px; }
+.todo-card em { font-style: normal; color: var(--pri); font-size: 13px; margin-top: 6px; }
+.todo-card.zero b { color: #1d7a4d; }
+
+/* ---------- Tab chọn tầng, chọn chi nhánh ---------- */
+.sub-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 14px; }
+.sub-tab {
+  padding: 7px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--card); color: var(--ink);
+  font: inherit; cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+}
+.sub-tab small { color: var(--mut); }
+.sub-tab:hover { border-color: var(--pri); }
+.sub-tab.on { background: var(--pri); border-color: var(--pri); color: #fff; }
+.sub-tab.on small { color: rgba(255, 255, 255, 0.85); }
+
+/* ---------- Công suất theo chi nhánh ---------- */
+.occ-row { display: grid; grid-template-columns: 190px 1fr 120px; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.occ-row:last-child { border-bottom: 0; }
+.occ-bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.occ-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #d9a066, #a8641f); transition: width 0.6s var(--ease-ios, ease); }
+
+/* ---------- Điện thoại: thanh bên thành ngăn kéo ---------- */
+@media (max-width: 900px) {
+  .dsh { grid-template-columns: 1fr; }
+  .dsh-side {
+    position: fixed; left: 0; top: 0; width: 270px; transform: translateX(-102%);
+    transition: transform 0.4s var(--ease-ios, ease); box-shadow: none;
+  }
+  .dsh-side.open { transform: none; box-shadow: 10px 0 40px rgba(0, 0, 0, 0.4); }
+  .dsh-burger { display: grid; place-items: center; }
+  .dsh-scrim { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .dsh-scrim.show { opacity: 1; pointer-events: auto; }
+  .dsh-top { padding: 0 14px; }
+  .dsh-main { padding: 18px 14px 50px; }
+  .occ-row { grid-template-columns: 1fr; gap: 6px; }
+}

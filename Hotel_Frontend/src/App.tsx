@@ -2,9 +2,12 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import PublicLayout from './layouts/PublicLayout'
 import DashboardLayout from './layouts/DashboardLayout'
 import RequireRole from './components/RequireRole'
+import HomePage from './pages/HomePage'
 import AboutPage from './pages/AboutPage'
-import SearchPage from './pages/SearchPage'
+import BranchesPage from './pages/BranchesPage'
+import RoomsPage from './pages/RoomsPage'
 import RoomDetailPage from './pages/RoomDetailPage'
+import SearchPage from './pages/SearchPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -16,15 +19,19 @@ import RoomMapPage from './pages/dashboard/RoomMapPage'
 import ReservationsPage from './pages/dashboard/ReservationsPage'
 import ReportsPage from './pages/dashboard/ReportsPage'
 import PricingPage from './pages/dashboard/PricingPage'
+import ReviewsPage from './pages/dashboard/ReviewsPage'
+import OverviewPage from './pages/dashboard/OverviewPage'
 
 export default function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route index element={<AboutPage />} />
-        <Route path="search" element={<SearchPage />} />
+        <Route index element={<HomePage />} />
+        <Route path="about" element={<AboutPage />} />
+        <Route path="branches" element={<BranchesPage />} />
+        <Route path="rooms" element={<RoomsPage />} />
         <Route path="rooms/:id" element={<RoomDetailPage />} />
-        <Route path="about" element={<Navigate to="/" replace />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
@@ -42,13 +49,14 @@ export default function App() {
 
       <Route element={<RequireRole roles={['receptionist', 'manager', 'admin']} />}>
         <Route path="dashboard" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="rooms" replace />} />
+          <Route index element={<OverviewPage />} />
           <Route path="rooms" element={<RoomMapPage />} />
           <Route path="reservations" element={<ReservationsPage />} />
 
           <Route element={<RequireRole roles={['manager', 'admin']} />}>
             <Route path="reports" element={<ReportsPage />} />
             <Route path="pricing" element={<PricingPage />} />
+            <Route path="reviews" element={<ReviewsPage />} />
           </Route>
         </Route>
       </Route>

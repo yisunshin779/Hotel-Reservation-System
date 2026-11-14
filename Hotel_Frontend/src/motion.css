@@ -1,0 +1,212 @@
+/* ---------- Lớp chuyển động kiểu iOS / macOS (chỉ thêm, không thay hiệu ứng cũ) ---------- */
+:root {
+  --ease-ios: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ----- Chuyển trang ----- */
+.pt { animation: ptFade 0.5s var(--ease-ios) backwards; }
+.pt-fwd { animation-name: ptFwd; }
+.pt-back { animation-name: ptBack; }
+@keyframes ptFade { from { opacity: 0; transform: translateY(16px) scale(0.995); } }
+@keyframes ptFwd { from { opacity: 0; transform: translateX(40px); } }
+@keyframes ptBack { from { opacity: 0; transform: translateX(-40px); } }
+
+/* ----- Hiện dần khi cuộn tới ----- */
+.rv-pre { opacity: 0; transform: translateY(24px) scale(0.985); }
+.rv-pre.rv-in {
+  opacity: 1; transform: none;
+  transition: opacity 0.6s var(--ease-ios), transform 0.8s var(--ease-ios);
+}
+
+/* ----- Parallax banner và thanh menu khi cuộn ----- */
+.home-hero .hero-bg { inset: -14% 0; translate: 0 calc(var(--sy, 0) * 0.12px); }
+.home-hero .hero-text {
+  translate: 0 calc(var(--sy, 0) * 0.1px);
+  opacity: calc(1 - var(--sy, 0) / 700);
+}
+.top { transition: box-shadow 0.3s var(--ease-ios); }
+html.scrolled .top { box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16); }
+
+/* ----- Menu thả xuống ----- */
+.dd-menu { transform-origin: top left; animation: menuIn 0.3s var(--spring) both; }
+.dd-menu.right { transform-origin: top right; }
+.dd-menu > * { animation: itemIn 0.32s var(--ease-ios) backwards; }
+.dd-menu > *:nth-child(1) { animation-delay: 0.03s; }
+.dd-menu > *:nth-child(2) { animation-delay: 0.06s; }
+.dd-menu > *:nth-child(3) { animation-delay: 0.09s; }
+.dd-menu > *:nth-child(4) { animation-delay: 0.12s; }
+.dd-menu > *:nth-child(5) { animation-delay: 0.15s; }
+.dd-menu > *:nth-child(6) { animation-delay: 0.18s; }
+@keyframes menuIn { from { opacity: 0; transform: translateY(-8px) scale(0.92); } }
+@keyframes itemIn { from { opacity: 0; transform: translateX(-8px); } }
+
+/* ----- Cửa sổ pop-up ----- */
+.modal-bg { animation: bgIn 0.3s ease both; backdrop-filter: blur(6px); }
+.stay-dialog { animation: sheetIn 0.5s var(--spring) both; }
+@keyframes bgIn { from { opacity: 0; } }
+@keyframes sheetIn { from { opacity: 0; transform: translateY(30px) scale(0.95); } }
+@keyframes sheetUp { from { transform: translateY(100%); } }
+@media (max-width: 640px) {
+  .modal-bg { place-items: end center; padding: 0; }
+  .stay-dialog { max-width: none !important; border-radius: 20px 20px 0 0; animation-name: sheetUp; animation-timing-function: var(--ease-ios); animation-duration: 0.45s; }
+}
+
+/* ----- Tab ----- */
+.tab-anim { animation: tabIn 0.45s var(--ease-ios) backwards; }
+@keyframes tabIn { from { opacity: 0; transform: translateY(12px); } }
+.utab, .tab, .fchip { transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.3s var(--spring); }
+
+/* ----- Nút, chip, ô nhập ----- */
+.btn, .chip, .fchip, .tab, .dd-btn, .user-chip {
+  transition: transform 0.35s var(--spring), box-shadow 0.25s, background 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled), .chip:active, .fchip:active, .tab:active, .dd-btn:active {
+  transform: scale(0.96); transition-duration: 0.08s;
+}
+.btn.primary:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(168, 100, 31, 0.3); }
+input, select, textarea { transition: border-color 0.2s, box-shadow 0.25s, background 0.2s; }
+input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(168, 100, 31, 0.16); }
+
+/* ----- Thẻ, ô phòng, dòng bảng ----- */
+.rm { transition: transform 0.3s var(--spring), box-shadow 0.25s, border-color 0.4s, background 0.3s; }
+.rm:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18); }
+.card, .panel { transition: box-shadow 0.3s var(--ease-ios), border-color 0.3s; }
+tbody tr { transition: background 0.2s; }
+tbody tr:hover { background: rgba(168, 100, 31, 0.07); }
+
+/* ----- Người dùng bật "giảm chuyển động" trong hệ điều hành ----- */
+@media (prefers-reduced-motion: reduce) {
+  .pt, .tab-anim, .dd-menu, .dd-menu > *, .modal-bg, .stay-dialog { animation-duration: 0.01ms !important; }
+  .rv-pre { opacity: 1; transform: none; }
+  .home-hero .hero-bg, .home-hero .hero-text { translate: none; }
+  .home-hero .hero-text { opacity: 1; }
+}
+
+/* ================= BỔ SUNG LỚP CHUYỂN ĐỘNG ================= */
+html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+::selection { background: rgba(168, 100, 31, 0.25); }
+:focus-visible { outline: 2px solid var(--pri); outline-offset: 2px; }
+
+/* ----- Số thứ tự của từng phần tử trong danh sách, dùng để hiện lần lượt ----- */
+:nth-child(1) { --i: 0; }
+:nth-child(2) { --i: 1; }
+:nth-child(3) { --i: 2; }
+:nth-child(4) { --i: 3; }
+:nth-child(5) { --i: 4; }
+:nth-child(6) { --i: 5; }
+:nth-child(7) { --i: 6; }
+:nth-child(8) { --i: 7; }
+:nth-child(9) { --i: 8; }
+:nth-child(10) { --i: 9; }
+:nth-child(11) { --i: 10; }
+:nth-child(12) { --i: 11; }
+:nth-child(n + 13) { --i: 12; }
+
+/* ----- Danh sách hiện lần lượt (chạy được cả khi dữ liệu tải sau) ----- */
+.results > .room-card:not(.skeleton),
+.rooms > .rm,
+.todo > .todo-card,
+.gal-thumbs > button,
+tbody > tr,
+.rev-item,
+.dist-row,
+.occ-row,
+.dsh-side nav > a {
+  animation: mList 0.55s var(--ease-ios) backwards;
+  animation-delay: calc(var(--i) * 55ms);
+}
+@keyframes mList { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
+
+/* Sửa lỗi: hiệu ứng cũ giữ trạng thái cuối nên chặn hiệu ứng nhấc lên khi rê chuột */
+.feature, .room-card { animation-fill-mode: backwards; }
+
+/* ----- Đầu trang con ----- */
+.page-head .crumbs, .page-head h1, .page-head p { animation: mList 0.6s var(--ease-ios) backwards; }
+.page-head h1 { animation-delay: 0.07s; }
+.page-head p { animation-delay: 0.14s; }
+
+/* ----- Tab dạng viên thuốc, chip lọc: nảy khi được chọn ----- */
+.sub-tab.on, .fchip.on, .tab.on { animation: mPill 0.4s var(--spring); }
+@keyframes mPill { from { transform: scale(0.9); } to { transform: scale(1); } }
+
+/* ----- Thông báo, ô trạng thái ----- */
+.err:not(.shake), .ok-msg, .demo-code, .branch-fixed { animation: mMsg 0.4s var(--ease-ios) backwards; }
+@keyframes mMsg { from { opacity: 0; transform: translateY(-6px); } }
+.empty, .q-total { animation: mPop 0.5s var(--spring) backwards; }
+@keyframes mPop { from { opacity: 0; transform: scale(0.94); } }
+
+/* ----- Chấm sao ----- */
+.stars-rt button.on { animation: mStar 0.35s var(--spring); }
+@keyframes mStar { 0% { transform: scale(0.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+/* ----- Biểu đồ ----- */
+.bars > div { transform-origin: bottom; animation: mBar 0.9s var(--ease-ios) backwards; animation-delay: calc(var(--i) * 70ms); }
+@keyframes mBar { from { transform: scaleY(0); } }
+.dist-bar i, .occ-bar i, .meter i { transform-origin: left; animation: mFill 0.9s var(--ease-ios) backwards; }
+@keyframes mFill { from { transform: scaleX(0); } }
+
+/* ----- Thư viện ảnh phòng ----- */
+.gal-emoji { animation: mGal 0.5s var(--spring) backwards, bob 4s ease-in-out 0.5s infinite; }
+@keyframes mGal { from { opacity: 0; transform: scale(0.6) rotate(-8deg); } }
+.gal-cap { animation: mMsg 0.4s 0.1s var(--ease-ios) backwards; }
+
+/* ----- Thanh menu: gạch chân trượt ra ----- */
+.top nav > a { position: relative; }
+.top nav > a::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 5px; height: 2px; border-radius: 2px;
+  background: var(--pri); transform: scaleX(0); transition: transform 0.4s var(--ease-ios);
+}
+.top nav > a:hover::after { transform: scaleX(0.55); }
+.top nav > a.active::after { transform: scaleX(1); }
+
+/* ----- Liên kết: gạch chân vẽ dần ----- */
+.foot-in a, .auth-links a, .crumbs a {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 100% / 0 1px;
+  transition: background-size 0.35s var(--ease-ios), color 0.2s;
+}
+.foot-in a { width: fit-content; }
+.foot-in a:hover, .auth-links a:hover, .crumbs a:hover { background-size: 100% 1px; text-decoration: none; }
+
+/* ----- Logo, avatar, mục trong menu thả xuống ----- */
+.logo-mark, .dsh-mark, .avatar-sm, .dsh-avatar { transition: transform 0.45s var(--spring); }
+.logo:hover .logo-mark, .dsh-brand:hover .dsh-mark { transform: rotate(-10deg) scale(1.1); }
+.dd-btn:hover .avatar-sm { transform: scale(1.1); }
+.dd-menu a, .dd-menu button { transition: background 0.15s, padding-left 0.25s var(--ease-ios); }
+.dd-menu a:hover, .dd-menu button:hover { padding-left: 16px; }
+
+/* ----- Nhãn đổi màu khi đang nhập ----- */
+label { transition: color 0.2s; }
+label:focus-within, .home label:focus-within, .auth-form label:focus-within { color: var(--pri); }
+
+/* ----- Thẻ bấm được: nhún xuống khi bấm ----- */
+.ecard:active, .bcard:active, .todo-card:active, .user-chip:active { transform: scale(0.985); transition-duration: 0.1s; }
+
+/* ----- Hiệu ứng đóng (menu thả xuống, hộp thoại) ----- */
+.leaving { pointer-events: none; }
+.leaving .dd-menu { animation: mMenuOut 0.18s var(--ease-ios) forwards; }
+.leaving .modal-bg { animation: mBgOut 0.3s ease forwards; }
+.leaving .stay-dialog { animation: mSheetOut 0.3s var(--ease-ios) forwards; }
+@keyframes mMenuOut { to { opacity: 0; transform: translateY(-6px) scale(0.94); } }
+@keyframes mBgOut { to { opacity: 0; } }
+@keyframes mSheetOut { to { opacity: 0; transform: translateY(24px) scale(0.96); } }
+@keyframes mSheetDown { to { transform: translateY(100%); } }
+@media (max-width: 640px) { .leaving .stay-dialog { animation-name: mSheetDown; } }
+
+/* ----- Thanh tiến trình mỏng trên cùng ----- */
+.topbar {
+  position: fixed; top: 0; left: 0; z-index: 100; height: 3px; width: 0; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, #d9a066, #a8641f); box-shadow: 0 0 10px rgba(168, 100, 31, 0.6);
+}
+.topbar.run { opacity: 1; width: 85%; transition: width 8s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 0.1s; }
+.topbar.done { opacity: 0; width: 100%; transition: width 0.25s ease, opacity 0.4s 0.25s; }
+
+/* ----- Người dùng bật "giảm chuyển động" trong hệ điều hành ----- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .results > .room-card, .rooms > .rm, .todo > .todo-card, .gal-thumbs > button, tbody > tr, .rev-item,
+  .dist-row, .occ-row, .dsh-side nav > a, .bars > div, .dist-bar i, .occ-bar i, .meter i,
+  .page-head .crumbs, .page-head h1, .page-head p, .gal-emoji, .gal-cap { animation: none !important; }
+  .topbar { display: none; }
+}

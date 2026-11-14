@@ -1,0 +1,118 @@
+/* Giao diện thống nhất cho toàn website. File này nạp SAU index.css nên ghi đè lên bản cũ. */
+:root {
+  color-scheme: light;
+  --bg: #faf6ef; --card: #ffffff; --ink: #2b1f14; --mut: #7a6a58; --line: #e8dfd0; --pri: #a8641f;
+}
+body { background: var(--bg); color: var(--ink); }
+
+/* ---------- Thanh menu ---------- */
+.top {
+  position: sticky; top: 0; z-index: 40; height: 64px; padding: 0 24px; gap: 8px; flex-wrap: nowrap;
+  background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+}
+.top nav { display: flex; align-items: center; gap: 2px; flex: 1; }
+.top nav > a { padding: 8px 12px; border-radius: 8px; }
+.top nav > a:hover { background: #f3ebdd; }
+.logo { display: inline-flex; align-items: center; gap: 9px; font: 700 18px var(--font); color: var(--ink); margin-right: 14px; }
+.logo:hover { transform: none; }
+.logo-mark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--pri); color: #fff; font-size: 16px; }
+
+/* ---------- Menu thả xuống ---------- */
+.dd { position: relative; }
+.dd-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--ink); font: inherit; cursor: pointer;
+}
+.dd-btn:hover, .dd-btn.open { background: #f3ebdd; }
+.caret { font-size: 10px; opacity: 0.6; transition: transform 0.15s; }
+.dd-btn.open .caret { transform: rotate(180deg); }
+.dd-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; min-width: 230px; padding: 6px; z-index: 60;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(60, 35, 10, 0.16); animation: fadeUp 0.15s ease both;
+}
+.dd-menu.right { left: auto; right: 0; }
+.dd-menu a, .dd-menu button {
+  display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; border-radius: 8px;
+  background: none; color: var(--ink); font: inherit; cursor: pointer;
+}
+.dd-menu a:hover, .dd-menu button:hover { background: #f6efe3; }
+.dd-menu small { display: block; color: var(--mut); font-size: 12px; }
+.dd-head { padding: 8px 12px; }
+.dd-head small { display: block; color: var(--mut); }
+.dd-sep { height: 1px; background: var(--line); margin: 6px 0; }
+.avatar-sm { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--pri); color: #fff; font-size: 13px; font-weight: 700; }
+.uname { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Chân trang ---------- */
+.site-foot { background: #2b1f14; color: #e9dcc7; }
+.foot-in { max-width: 1100px; margin: 0 auto; padding: 36px 16px 22px; display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 24px; }
+.foot-in h4 { margin: 0 0 10px; font-size: 14px; color: #fff; }
+.foot-in a { display: block; color: #e9dcc7; padding: 3px 0; font-size: 14px; }
+.foot-in a:hover { color: #fff; text-decoration: underline; }
+.foot-in p { margin: 8px 0 0; color: #bfae95; font-size: 14px; max-width: 320px; }
+.foot-in .logo { color: #fff; margin: 0; }
+.foot-in select { background: #3a2c1d; color: #fff; border-color: #5a4630; width: auto; }
+.foot-copy { max-width: 1100px; margin: 0 auto; padding: 14px 16px 22px; border-top: 1px solid #45352a; color: #bfae95; font-size: 13px; }
+
+/* ---------- Đầu trang con (tiêu đề + đường dẫn) ---------- */
+.page-head { margin: 4px 0 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.page-head h1 { margin: 6px 0 4px; font-size: 28px; }
+.page-head p { margin: 0; color: var(--mut); max-width: 720px; }
+.ph-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+
+/* ---------- Tab gạch chân ---------- */
+.utabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 18px; overflow-x: auto; }
+.utab {
+  padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  background: none; color: var(--mut); font: inherit; cursor: pointer;
+}
+.utab:hover { color: var(--ink); }
+.utab.on { color: var(--pri); border-color: var(--pri); font-weight: 600; }
+
+/* ---------- Trang chủ ---------- */
+.home-hero.hero-photo.hero-lg { padding: 120px 16px 170px; }
+.hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; animation: fadeUp 0.7s 0.3s ease both; }
+.btn.big { padding: 12px 26px; font-size: 16px; border-radius: 10px; display: inline-block; }
+.btn.ghost-light { background: rgba(255, 255, 255, 0.14); color: #fff; border: 1px solid rgba(255, 255, 255, 0.55); backdrop-filter: blur(4px); }
+.btn.ghost-light:hover { background: rgba(255, 255, 255, 0.26); }
+
+.explore { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+.ecard {
+  display: flex; flex-direction: column; gap: 8px; padding: 22px; color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s;
+}
+.ecard:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(120, 70, 20, 0.14); }
+.ecard .ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #f6ead7; color: var(--pri); }
+.ecard h3 { margin: 6px 0 0; font-size: 18px; }
+.ecard p { margin: 0; color: var(--mut); flex: 1; }
+.ecard .more { color: var(--pri); font-weight: 600; }
+
+/* ---------- Chi nhánh ---------- */
+.bgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.bcard { display: flex; flex-direction: column; overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s; }
+.bcard:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(120, 70, 20, 0.14); }
+.bviz { padding: 28px 20px; color: #fff; font: 700 22px var(--font); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+.bviz.v1 { background: linear-gradient(135deg, #46607a, #b9a27a); }
+.bviz.v2 { background: linear-gradient(135deg, #2f7d8c, #e7b66b); }
+.bviz.v3 { background: linear-gradient(135deg, #7a4a2b, #e2954f); }
+.bbody { padding: 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.bbody p { margin: 0; color: var(--mut); }
+.binfo { display: grid; gap: 6px; font-size: 14px; }
+.binfo div, .bpoints li { display: flex; gap: 8px; align-items: center; }
+.binfo svg { color: var(--pri); flex: none; }
+.bpoints { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.bpoints svg { color: #1d7a4d; flex: none; }
+.bbody .btn { margin-top: auto; text-align: center; }
+
+/* ---------- Các khối đã có, bỏ phần nổi lên banner khi không còn banner ---------- */
+.search-card.flat { margin-top: 0; animation: none; box-shadow: 0 6px 20px rgba(90, 60, 20, 0.08); }
+.stats.flat { margin-top: 0; box-shadow: 0 6px 20px rgba(90, 60, 20, 0.08); }
+.specs small { display: block; }
+
+@media (max-width: 760px) {
+  .top { padding: 0 12px; }
+  .uname { display: none; }
+  .foot-in { grid-template-columns: 1fr 1fr; }
+  .home-hero.hero-photo.hero-lg { padding: 80px 14px 130px; }
+}
