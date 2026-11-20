@@ -1,5 +1,8 @@
 package com.Hotel.Module_TaiKhoan.service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,35 +80,70 @@ public class AuthService {
         // 8. Ra lệnh cho bưu tá gửi email
         emailService.sendVerificationEmail(newAccount.getEmail(), token);
     }
-
-    // Thêm hàm Login (UC02)
+    
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCK_DURATION_MINUTES = 15;
     public AuthResponseDTO login(LoginRequestDTO request) {
-        // 1. Tìm tài khoản bằng Email (Ném lỗi chung chung để bảo mật theo UC02)
+        // 1. Tìm tài khoản bằng Email
         Account account = accountRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Thông tin đăng nhập không đúng"));
+            .orElseThrow(() -> new IllegalArgumentException("Thông tin đăng nhập không đúng"));
 
-        // 2. So khớp mật khẩu
-        if (!passwordEncoder.matches(request.getMatKhau(), account.getMatKhau())) {
-            // TODO: Bổ sung logic tăng số lần đăng nhập sai (soLanDangNhapSai) ở đây
-            throw new IllegalArgumentException("Thông tin đăng nhập không đúng");
-        }
-
-        // 3. Kiểm tra trạng thái tài khoản
+        // 2. Kiểm tra trạng thái xác thực và khóa vĩnh viễn từ Admin
         if ("CHO_XAC_THUC".equals(account.getTrangThai())) {
             throw new IllegalStateException("Tài khoản chưa được xác thực. Vui lòng kiểm tra email.");
         }
         if ("BI_KHOA".equals(account.getTrangThai())) {
-            throw new IllegalStateException("Tài khoản đã bị quản trị viên khoá.");
+            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
         }
 
-        // 4. Nếu mọi thứ hợp lệ, sinh Token và trả về
+        // 3. Kiểm tra trạng thái khóa tạm thời do Brute-force
+        LocalDateTime now = LocalDateTime.now();
+        if (account.getThoiGianKhoa() != null) {
+            if (account.getThoiGianKhoa().isAfter(now)) {
+                long remainingSeconds = Duration.between(now, account.getThoiGianKhoa()).getSeconds();
+                long remainingMinutes = Math.max(1, (remainingSeconds + 59) / 60); // Làm tròn lên theo phút
+                throw new IllegalStateException(
+                    "Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau " 
+                    + remainingMinutes + " phút."
+                );
+            } else {
+                // Đã hết 15 phút khóa -> Tự động mở khóa và reset bộ đếm
+                account.setSoLanDangNhapSai(0);
+                account.setThoiGianKhoa(null);
+                accountRepository.save(account);
+            }
+        }
+
+        // 4. Đối chiếu mật khẩu
+        if (!passwordEncoder.matches(request.getMatKhau(), account.getMatKhau())) {
+            int failedAttempts = account.getSoLanDangNhapSai() + 1;
+            account.setSoLanDangNhapSai(failedAttempts);
+
+            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                account.setThoiGianKhoa(now.plusMinutes(LOCK_DURATION_MINUTES));
+                accountRepository.save(account);
+                throw new IllegalStateException(
+                    "Bạn đã đăng nhập sai quá " + MAX_FAILED_ATTEMPTS 
+                    + " lần. Tài khoản bị khóa tạm thời trong " + LOCK_DURATION_MINUTES + " phút."
+                );
+            }
+
+            accountRepository.save(account);
+            throw new IllegalArgumentException("Thông tin đăng nhập không đúng");
+        }
+
+        // 5. Đăng nhập thành công -> Reset bộ đếm nếu trước đó từng nhập sai
+        if (account.getSoLanDangNhapSai() > 0 || account.getThoiGianKhoa() != null) {
+            account.setSoLanDangNhapSai(0);
+            account.setThoiGianKhoa(null);
+            accountRepository.save(account);
+        }
+
+        // 6. Sinh JWT và trả về
         String token = jwtTokenProvider.generateToken(account.getEmail(), account.getVaiTro());
-        
-        // TODO: Reset bộ đếm soLanDangNhapSai về 0
-        
         return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
     }
-
+    
     @Transactional
     public void verifyEmailToken(String token) {
         // 1. Tìm token trong cơ sở dữ liệu

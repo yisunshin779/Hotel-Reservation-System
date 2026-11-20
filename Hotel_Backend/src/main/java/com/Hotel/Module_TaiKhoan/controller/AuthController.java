@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.Hotel.Module_TaiKhoan.dto.AuthResponseDTO;
 import com.Hotel.Module_TaiKhoan.dto.LoginRequestDTO;
@@ -52,6 +54,17 @@ public class AuthController {
             "status", "success",
             "message", "Đăng nhập thành công!",
             "data", response
+        ));
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        // Gọi Service rà soát và đối chiếu token
+        authService.verifyEmailToken(token);
+    
+        return ResponseEntity.ok(java.util.Map.of(
+            "status", "success",
+            "message", "Tài khoản đã được xác thực thành công. Bạn có thể đăng nhập."
         ));
     }
 }
