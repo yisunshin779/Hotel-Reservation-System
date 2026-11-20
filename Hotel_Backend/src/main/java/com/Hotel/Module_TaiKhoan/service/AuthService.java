@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.Hotel.Module_TaiKhoan.dto.AuthResponseDTO;
 import com.Hotel.Module_TaiKhoan.dto.LoginRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.RegistrationRequestDTO;
+import com.Hotel.Module_TaiKhoan.dto.ResetPasswordRequestDTO;
 import com.Hotel.Module_TaiKhoan.entity.Account;
 import com.Hotel.Module_TaiKhoan.entity.VerificationToken;
 import com.Hotel.Module_TaiKhoan.repository.AccountRepository;
@@ -162,5 +163,59 @@ public class AuthService {
 
         // 4. Xóa token sau khi đã sử dụng
         verificationTokenRepository.delete(verificationToken);
+    }
+
+    @Transactional
+    public void forgotPassword(String email) {
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với email này."));
+
+        if ("BI_KHOA".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
+        }
+        if ("GOOGLE".equalsIgnoreCase(account.getAuthProvider()) && account.getMatKhau() == null) {
+            throw new IllegalStateException("Tài khoản này đăng nhập bằng Google, không hỗ trợ đặt lại mật khẩu nội bộ.");
+        }
+
+        // Sinh token đặt lại mật khẩu (hiệu lực ngắn: 15 phút)
+        String token = java.util.UUID.randomUUID().toString();
+        VerificationToken resetToken = new VerificationToken();
+        resetToken.setToken(token);
+        resetToken.setAccount(account);
+        resetToken.setLoaiToken("RESET_PASSWORD");
+        resetToken.setNgayHetHan(LocalDateTime.now().plusMinutes(15));
+
+        verificationTokenRepository.save(resetToken);
+        emailService.sendResetPasswordEmail(account.getEmail(), token);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequestDTO request) {
+        if (!request.getMatKhauMoi().equals(request.getNhapLaiMatKhauMoi())) {
+            throw new IllegalArgumentException("Mật khẩu nhập lại không khớp.");
+        }
+
+        VerificationToken resetToken = verificationTokenRepository.findByToken(request.getToken())
+            .orElseThrow(() -> new IllegalArgumentException("Mã đặt lại mật khẩu không tồn tại hoặc không hợp lệ."));
+
+        // Ngăn dùng nhầm token VERIFY_EMAIL cho luồng đổi mật khẩu
+        if (!"RESET_PASSWORD".equals(resetToken.getLoaiToken())) {
+            throw new IllegalArgumentException("Loại token không hợp lệ cho thao tác đặt lại mật khẩu.");
+        }
+
+        if (resetToken.getNgayHetHan().isBefore(LocalDateTime.now())) {
+            verificationTokenRepository.delete(resetToken);
+            throw new IllegalStateException("Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi lại yêu cầu.");
+        }
+
+        Account account = resetToken.getAccount();
+        account.setMatKhau(passwordEncoder.encode(request.getMatKhauMoi()));
+        // Mở khóa Brute-force nếu tài khoản đang bị khóa tạm thời
+        account.setSoLanDangNhapSai(0);
+        account.setThoiGianKhoa(null);
+        accountRepository.save(account);
+
+        // Xóa token để chỉ dùng đúng 1 lần
+        verificationTokenRepository.delete(resetToken);
     }
 }
