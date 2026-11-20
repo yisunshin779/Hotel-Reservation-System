@@ -8,23 +8,30 @@ import com.Hotel.Module_TaiKhoan.dto.AuthResponseDTO;
 import com.Hotel.Module_TaiKhoan.dto.LoginRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.RegistrationRequestDTO;
 import com.Hotel.Module_TaiKhoan.entity.Account;
+import com.Hotel.Module_TaiKhoan.entity.VerificationToken;
 import com.Hotel.Module_TaiKhoan.repository.AccountRepository;
+import com.Hotel.Module_TaiKhoan.repository.VerificationTokenRepository;
 import com.Hotel.Module_TaiKhoan.security.JwtTokenProvider;
 
 @Service
 public class AuthService {
-    
+
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final VerificationTokenRepository verificationTokenRepository; 
+    private final EmailService emailService;                               
 
-    // Constructor Injection
-    public AuthService(AccountRepository accountRepository, 
-                       PasswordEncoder passwordEncoder, 
-                       JwtTokenProvider jwtTokenProvider) {
+    public AuthService(AccountRepository accountRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider jwtTokenProvider,
+                       VerificationTokenRepository verificationTokenRepository,
+                       EmailService emailService) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -56,7 +63,19 @@ public class AuthService {
         // 6. Ghi xuống Cơ sở dữ liệu
         accountRepository.save(newAccount);
 
-        // TODO: Sinh VerificationToken và gọi EmailService để gửi link kích hoạt (Sẽ triển khai sau)
+        // 7. Sinh mã xác thực ngẫu nhiên (dùng cấu trúc UUID)
+        String token = java.util.UUID.randomUUID().toString();
+    
+        VerificationToken verificationToken = new VerificationToken();
+        verificationToken.setToken(token);
+        verificationToken.setAccount(newAccount);
+        verificationToken.setLoaiToken("VERIFY_EMAIL");
+        verificationToken.setNgayHetHan(java.time.LocalDateTime.now().plusHours(24)); // Có hiệu lực trong 24 giờ
+    
+        verificationTokenRepository.save(verificationToken);
+
+        // 8. Ra lệnh cho bưu tá gửi email
+        emailService.sendVerificationEmail(newAccount.getEmail(), token);
     }
 
     // Thêm hàm Login (UC02)
@@ -85,5 +104,25 @@ public class AuthService {
         // TODO: Reset bộ đếm soLanDangNhapSai về 0
         
         return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
+    }
+
+    @Transactional
+    public void verifyEmailToken(String token) {
+        // 1. Tìm token trong cơ sở dữ liệu
+        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Mã xác thực không tồn tại hoặc không hợp lệ."));
+
+        // 2. Kiểm tra thời hạn của token
+        if (verificationToken.getNgayHetHan().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalStateException("Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại.");
+        }
+
+        // 3. Kích hoạt tài khoản
+        Account account = verificationToken.getAccount();
+        account.setTrangThai("DA_KICH_HOAT");
+        accountRepository.save(account);
+
+        // 4. Xóa token sau khi đã sử dụng
+        verificationTokenRepository.delete(verificationToken);
     }
 }
