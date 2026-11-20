@@ -1,5 +1,8 @@
 package com.Hotel.Module_TaiKhoan.service;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,48 @@ public class AccountService {
         account.setCccd(cccd);
 
         Account saved = accountRepository.save(account);
+        return AccountProfileResponseDTO.fromEntity(saved);
+    }
+
+    public List<AccountProfileResponseDTO> getAllAccounts() {
+        return accountRepository.findAll()
+                .stream()
+                .map(AccountProfileResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional
+    public AccountProfileResponseDTO updateAccountRole(UUID targetAccountId, String newRole, String adminEmail) {
+        Account target = accountRepository.findById(targetAccountId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với ID này."));
+
+        if (target.getEmail().equalsIgnoreCase(adminEmail)) {
+            throw new IllegalStateException("Bạn không thể tự thay đổi vai trò của chính mình.");
+        }
+
+        target.setVaiTro(newRole);
+        Account saved = accountRepository.save(target);
+        return AccountProfileResponseDTO.fromEntity(saved);
+    }
+
+    @Transactional
+    public AccountProfileResponseDTO updateAccountStatus(UUID targetAccountId, String newStatus, String adminEmail) {
+        Account target = accountRepository.findById(targetAccountId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với ID này."));
+
+        if (target.getEmail().equalsIgnoreCase(adminEmail)) {
+            throw new IllegalStateException("Bạn không thể tự khóa hoặc thay đổi trạng thái của chính mình.");
+        }
+
+        target.setTrangThai(newStatus);
+
+        // Nếu Admin kích hoạt lại tài khoản -> xóa luôn bộ đếm khóa Brute-force (nếu có)
+        if ("DA_KICH_HOAT".equals(newStatus)) {
+            target.setSoLanDangNhapSai(0);
+            target.setThoiGianKhoa(null);
+        }
+
+        Account saved = accountRepository.save(target);
         return AccountProfileResponseDTO.fromEntity(saved);
     }
 }

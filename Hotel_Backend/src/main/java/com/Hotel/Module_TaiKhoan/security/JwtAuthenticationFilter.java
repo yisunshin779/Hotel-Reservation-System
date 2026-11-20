@@ -36,19 +36,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // 2. Nếu có token và token hợp lệ
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                
-                // 3. Bóc tách email người dùng từ token
                 String email = tokenProvider.getEmailFromJwt(jwt);
+                String role = tokenProvider.getRoleFromJwt(jwt);
 
-                // 4. Khởi tạo UserDetails đại diện cho khách hàng 
-                // (Hệ thống Stateless tối ưu: Ta tạm cấp quyền ROLE_USER dựa vào định danh từ token)
+                // Chuẩn hóa tiền tố ROLE_ đề phòng dữ liệu cũ thiếu prefix
+                String authority = (role == null || role.isBlank())
+                                ? "ROLE_USER"
+                                : (role.startsWith("ROLE_") ? role : "ROLE_" + role);
+
                 UserDetails userDetails = User.withUsername(email)
-                        .password("") 
-                        .authorities("ROLE_USER")
+                        .password("")
+                        .authorities(authority)
                         .build();
 
-                // 5. Cấp giấy thông hành và đưa vào bộ nhớ của Spring Security
-                UsernamePasswordAuthenticationToken authentication = 
+                UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
@@ -58,7 +59,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             System.out.println("Không thể thiết lập xác thực người dùng trong Security Context: " + ex.getMessage());
         }
 
-        // 6. Cho phép request đi tiếp qua các màng lọc tiếp theo
         filterChain.doFilter(request, response);
     }
 
