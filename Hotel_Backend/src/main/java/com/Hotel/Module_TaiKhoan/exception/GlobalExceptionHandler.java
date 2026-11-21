@@ -67,4 +67,21 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR); // Trả về HTTP 500
     }
+
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<?> handleBadRequest(RuntimeException ex) {
+        return ResponseEntity.badRequest().body(Map.of(
+            "status", "error",
+            "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleGeneralException(Exception ex) {
+        ex.printStackTrace(); // In rõ lỗi gốc ra Terminal
+        return ResponseEntity.internalServerError().body(Map.of(
+            "status", "error",
+            "message", "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau."
+        ));
+    }
 }

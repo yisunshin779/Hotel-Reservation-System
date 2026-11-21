@@ -2,7 +2,9 @@ package com.Hotel.Module_TaiKhoan.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,10 @@ import com.Hotel.Module_TaiKhoan.entity.VerificationToken;
 import com.Hotel.Module_TaiKhoan.repository.AccountRepository;
 import com.Hotel.Module_TaiKhoan.repository.VerificationTokenRepository;
 import com.Hotel.Module_TaiKhoan.security.JwtTokenProvider;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 @Service
 public class AuthService {
@@ -115,6 +121,11 @@ public class AuthService {
             }
         }
 
+        if (account.getMatKhau() == null || account.getMatKhau().isBlank()) {
+            throw new IllegalStateException(
+                "Tài khoản này được đăng ký qua Google. Vui lòng sử dụng nút 'Đăng nhập với Google'."
+            );
+        }        
         // 4. Đối chiếu mật khẩu
         if (!passwordEncoder.matches(request.getMatKhau(), account.getMatKhau())) {
             int failedAttempts = account.getSoLanDangNhapSai() + 1;
@@ -217,5 +228,71 @@ public class AuthService {
 
         // Xóa token để chỉ dùng đúng 1 lần
         verificationTokenRepository.delete(resetToken);
+    }
+
+    // ... Khai báo thêm biến cấu hình bên trong class AuthService ...
+    @Value("${google.client-id}")
+    private String googleClientId;
+
+    @Transactional
+    public AuthResponseDTO loginWithGoogle(String idTokenString) {
+        // 1. Khởi tạo bộ xác thực chữ ký số với Public Keys của Google
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+            new NetHttpTransport(),
+            GsonFactory.getDefaultInstance())
+            .setAudience(Collections.singletonList(googleClientId))
+            .build();
+
+        GoogleIdToken idToken;
+        try {
+            idToken = verifier.verify(idTokenString);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Không thể xác thực chữ ký Google Token.");
+        }
+
+        if (idToken == null) {
+            throw new IllegalArgumentException("Google Token không hợp lệ, sai Client ID hoặc đã hết hạn.");
+        }
+
+        // 2. Bóc tách dữ liệu đã được Google bảo chứng
+        GoogleIdToken.Payload payload = idToken.getPayload();
+        if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
+            throw new IllegalStateException("Email Google của bạn chưa được xác minh.");
+        }
+
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+        if (name == null || name.isBlank()) {
+            name = email.split("@")[0];
+        }
+
+        // 3. Tìm hoặc tạo mới tài khoản (Upsert / Account Linking)
+        String finalName = name;
+        Account account = accountRepository.findByEmail(email).orElseGet(() -> {
+            Account newAccount = new Account();
+            newAccount.setEmail(email);
+            newAccount.setHoTen(finalName);
+            newAccount.setMatKhau(null); // Không có mật khẩu nội bộ
+            newAccount.setAuthProvider("GOOGLE");
+            newAccount.setVaiTro("ROLE_USER");
+            newAccount.setTrangThai("DA_KICH_HOAT"); // Google đã xác thực email nên kích hoạt ngay
+            return accountRepository.save(newAccount);
+        });
+
+        // 4. Kiểm tra các rào cản trạng thái với tài khoản đã tồn tại
+        if ("BI_KHOA".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
+        }
+
+        // Nếu trước đó khách đăng ký tay nhưng chưa bấm link email, đăng nhập Google sẽ kích hoạt luôn
+        if ("CHO_XAC_THUC".equals(account.getTrangThai())) {
+            account.setTrangThai("DA_KICH_HOAT");
+            accountRepository.save(account);
+        }
+
+        // 5. Cấp phát JWT nội bộ của hệ thống HRS
+        String token = jwtTokenProvider.generateToken(account.getEmail(), account.getVaiTro());
+        return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
+
     }
 }
