@@ -27,5 +27,5 @@ server:
   error:
     include-message: never
 
-  google:
-    client-id: 952969972713-b9ilgi3lmf6rs54rshvgf843d2m20fil.apps.googleusercontent.com
+google:
+  client-id: 952969972713-b9ilgi3lmf6rs54rshvgf843d2m20fil.apps.googleusercontent.com
