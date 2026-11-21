@@ -29,3 +29,6 @@ spring:
           auth: true
           starttls:
             enable: true
+
+  google:
+    client-id: 952969972713-b9ilgi3lmf6rs54rshvgf843d2m20fil.apps.googleusercontent.com

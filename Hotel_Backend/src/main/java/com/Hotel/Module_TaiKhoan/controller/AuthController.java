@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Hotel.Module_TaiKhoan.dto.AuthResponseDTO;
 import com.Hotel.Module_TaiKhoan.dto.ForgotPasswordRequestDTO;
+import com.Hotel.Module_TaiKhoan.dto.GoogleLoginRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.LoginRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.RegistrationRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.ResetPasswordRequestDTO;
@@ -85,6 +86,16 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
             "status", "success",
             "message", "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới."
+        ));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> loginWithGoogle(@Valid @RequestBody GoogleLoginRequestDTO request) {
+        AuthResponseDTO response = authService.loginWithGoogle(request.getIdToken());
+        return ResponseEntity.ok(Map.of(
+            "status", "success",
+            "message", "Đăng nhập bằng Google thành công!",
+            "data", response
         ));
     }
 }
