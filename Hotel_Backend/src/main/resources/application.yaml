@@ -12,6 +12,17 @@ spring:
         default_schema: hotel
   autoconfigure:
     exclude: org.redisson.spring.starter.RedissonAutoConfigurationV2
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: email_he_thong_cua_ban@gmail.com
+    password: mat_khau_ung_dung_16_ky_tu
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 server:
   error:
     include-message: never

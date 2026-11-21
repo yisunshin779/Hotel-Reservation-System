@@ -8,10 +8,10 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.0</version>
-        <relativePath/> 
+        <relativePath/>
     </parent>
 
-    <!-- Định danh dự án Backend của bạn -->
+    <!-- Định danh dự án Backend -->
     <groupId>com.hotel</groupId>
     <artifactId>hotel-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
@@ -24,7 +24,6 @@
         <hotel.build.directory>${project.basedir}/target</hotel.build.directory>
     </properties>
 
-    <!-- Khối chứa các thư viện bạn đã nhập -->
     <dependencyManagement>
         <dependencies>
             <dependency><groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><version>3.18.0</version></dependency>
@@ -33,6 +32,7 @@
             <dependency><groupId>org.apache.commons</groupId><artifactId>commons-compress</artifactId><version>1.28.0</version></dependency>
         </dependencies>
     </dependencyManagement>
+
     <dependencies>
         <!-- Thư viện lõi để tạo REST API -->
         <dependency>
@@ -53,12 +53,14 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Bổ sung: Thư viện Redisson để khóa luồng (Soft-lock) cho UC07 -->
+        <!-- Thư viện Redisson để khóa luồng (Soft-lock) cho UC07 -->
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-boot-starter</artifactId>
             <version>3.24.3</version>
         </dependency>
+
+        <!-- Kiểm thử -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -71,24 +73,30 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Bảo mật, Gửi Email và Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Xử lý file Excel -->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>6.0.0</version>
-        </dependency>
-
-        <!-- Bắt lỗi dữ liệu đầu vào DTO (Validation) -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
         <!-- Xử lý Token JWT -->

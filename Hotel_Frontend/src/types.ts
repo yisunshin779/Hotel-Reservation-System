@@ -51,6 +51,7 @@ export interface Reservation {
   roomNumber?: string
   quantity?: number
   services?: ServiceCharge[]
+  reviewed?: boolean
   roomNumbers?: string[]
   branchId?: string
 }
@@ -120,5 +121,16 @@ export interface ServiceCharge {
   name: string
   unitPrice: number
   quantity: number
+  at: string
+}
+
+export interface Review {
+  id: string
+  reservationId: string
+  code: string
+  guestName: string
+  roomTypeName: string
+  rating: number
+  comment: string
   at: string
 }

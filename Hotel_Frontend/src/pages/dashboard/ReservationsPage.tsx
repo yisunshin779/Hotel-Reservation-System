@@ -4,6 +4,7 @@ import { StaffBookingApi } from '../../api/hotel'
 import StayDialog from '../../components/StayDialog'
 import { useAuth } from '../../store/auth'
 import { STATUS_LABEL, serviceTotal, vnd } from '../../lib'
+import ExitMount from '../../components/ExitMount'
 
 export default function ReservationsPage() {
   const [q, setQ] = useState('')
@@ -120,7 +121,7 @@ export default function ReservationsPage() {
         </div>
       )}
 
-      {openId && <StayDialog id={openId} onClose={() => setOpenId(null)} />}
+      <ExitMount>{openId && <StayDialog id={openId} onClose={() => setOpenId(null)} />}</ExitMount>
     </>
   )
 }

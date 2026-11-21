@@ -27,6 +27,8 @@ const FILTERS: { key: RoomStatus | 'all'; label: string }[] = [
   { key: 'Maintenance', label: LABEL.Maintenance },
 ]
 
+const floorOf = (no: string) => no.slice(0, -2)
+
 export default function RoomMapPage() {
   const user = useAuth((s) => s.user)
   const queryClient = useQueryClient()
@@ -34,13 +36,14 @@ export default function RoomMapPage() {
   // Lễ tân chỉ làm việc ở chi nhánh của mình, quản lý và admin chọn được chi nhánh
   const isReceptionist = user?.role === 'receptionist'
   const [branchId, setBranchId] = useState(user?.branchId ?? 'hn')
+  const [floor, setFloor] = useState('1')
   const [filter, setFilter] = useState<RoomStatus | 'all'>('all')
 
   const branches = useQuery({ queryKey: ['branches'], queryFn: BranchApi.list })
   const rooms = useQuery({
     queryKey: ['rooms', branchId],
     queryFn: () => RoomApi.list(branchId),
-    refetchInterval: 5000, // tự tải lại mỗi 5 giây
+    refetchInterval: 5000,
   })
   const change = useMutation({
     mutationFn: (v: { id: string; status: RoomStatus }) => RoomApi.setStatus(v.id, v.status),
@@ -48,24 +51,27 @@ export default function RoomMapPage() {
   })
 
   const all = rooms.data ?? []
+  const floors = Array.from(new Set(all.map((r) => floorOf(r.roomNumber)))).sort((a, b) => +a - +b)
+  const cur = floors.includes(floor) ? floor : (floors[0] ?? '1')
+  const onFloor = all.filter((r) => floorOf(r.roomNumber) === cur)
+  const shown = filter === 'all' ? onFloor : onFloor.filter((r) => r.status === filter)
+
   const count = (s: RoomStatus) => all.filter((r) => r.status === s).length
-  const shown = filter === 'all' ? all : all.filter((r) => r.status === filter)
-  const floors = Array.from(new Set(shown.map((r) => r.roomNumber.slice(0, -2)))).sort((a, b) => +a - +b)
-  const branchName = branches.data?.find((b) => b.branchId === branchId)?.name ?? ''
   const occupancy = all.length ? Math.round((count('Occupied') / all.length) * 100) : 0
+  const branchName = branches.data?.find((b) => b.branchId === branchId)?.name ?? ''
 
   return (
     <>
       <h1>Sơ đồ phòng</h1>
 
       {isReceptionist ? (
-        <p className="branch-fixed">📍 Chi nhánh của bạn: <b>{branchName}</b></p>
+        <p className="branch-fixed">Chi nhánh của bạn: <b>{branchName}</b></p>
       ) : (
-        <div className="tabs">
+        <div className="sub-tabs">
           {branches.data?.map((b) => (
             <button
               key={b.branchId}
-              className={`tab ${b.branchId === branchId ? 'on' : ''}`}
+              className={`sub-tab ${b.branchId === branchId ? 'on' : ''}`}
               onClick={() => { setBranchId(b.branchId); setFilter('all') }}
             >
               {b.name}
@@ -84,13 +90,20 @@ export default function RoomMapPage() {
       </div>
       <p className="mut">Tổng {all.length} phòng · Công suất hiện tại {occupancy}%</p>
 
+      <div className="sub-tabs">
+        {floors.map((f) => {
+          const free = all.filter((r) => floorOf(r.roomNumber) === f && r.status === 'Available').length
+          return (
+            <button key={f} className={`sub-tab ${f === cur ? 'on' : ''}`} onClick={() => setFloor(f)}>
+              Tầng {f} <small>{free} trống</small>
+            </button>
+          )
+        })}
+      </div>
+
       <div className="fchips">
         {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            className={`fchip ${filter === f.key ? 'on' : ''}`}
-            onClick={() => setFilter(f.key)}
-          >
+          <button key={f.key} className={`fchip ${filter === f.key ? 'on' : ''}`} onClick={() => setFilter(f.key)}>
             {f.label}
           </button>
         ))}
@@ -99,32 +112,27 @@ export default function RoomMapPage() {
       {rooms.isLoading && <p>Đang tải...</p>}
       {rooms.error && <p className="err">{(rooms.error as Error).message}</p>}
       {change.error && <p className="err">{(change.error as Error).message}</p>}
-      {!rooms.isLoading && shown.length === 0 && <div className="card">Không có phòng nào ở trạng thái này.</div>}
+      {!rooms.isLoading && shown.length === 0 && <div className="card">Không có phòng nào ở trạng thái này trên tầng {cur}.</div>}
 
-      {floors.map((f) => (
-        <section key={f}>
-          <h3 className="floor-title">Tầng {f}</h3>
-          <div className="rooms">
-            {shown.filter((r) => r.roomNumber.slice(0, -2) === f).map((r) => (
-              <div key={r.roomId} className={`rm ${r.status}`}>
-                <b>{r.roomNumber}</b>
-                <small>{r.roomTypeName}</small>
-                <small>{LABEL[r.status]}</small>
-                {ACTIONS[r.status].map((a) => (
-                  <button
-                    key={a.to}
-                    className="btn"
-                    disabled={change.isPending}
-                    onClick={() => change.mutate({ id: r.roomId, status: a.to })}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
+      <div className="rooms" key={`${branchId}-${cur}-${filter}`}>
+        {shown.map((r) => (
+          <div key={r.roomId} className={`rm ${r.status}`}>
+            <b>{r.roomNumber}</b>
+            <small>{r.roomTypeName}</small>
+            <small>{LABEL[r.status]}</small>
+            {ACTIONS[r.status].map((a) => (
+              <button
+                key={a.to}
+                className="btn"
+                disabled={change.isPending}
+                onClick={() => change.mutate({ id: r.roomId, status: a.to })}
+              >
+                {a.label}
+              </button>
             ))}
           </div>
-        </section>
-      ))}
+        ))}
+      </div>
     </>
   )
 }
