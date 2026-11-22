@@ -2,7 +2,7 @@ export type Role = "guest" | "receptionist" | "manager" | "admin";
 export type ReservationStatus =
   | "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut"
   | "Cancelled" | "Expired" | "NoShow";
-export type RoomStatus = "Available" | "Occupied" | "Dirty" | "Maintenance";
+export type RoomStatus = "Available" | "Occupied" | "Dirty" | "Cleaning" | "Maintenance";
 
 export interface User {
   id: string;
@@ -54,6 +54,7 @@ export interface Reservation {
   reviewed?: boolean
   roomNumbers?: string[]
   branchId?: string
+  guestId?: string
 }
 
 export interface SearchParams {

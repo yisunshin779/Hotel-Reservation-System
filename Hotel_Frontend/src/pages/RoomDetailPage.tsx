@@ -41,6 +41,26 @@ const EXTRA: Record<string, {
   },
 }
 
+const ROOM_PHOTOS: Record<string, string[]> = {
+  Standard: [
+    'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=85',
+  ],
+  Deluxe: [
+    'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=85',
+  ],
+  Suite: [
+    'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1400&q=85',
+    'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=85',
+  ],
+}
 type Tab = 'overview' | 'amenities' | 'pricing' | 'reviews'
 const TABS: { key: Tab; label: string }[] = [
   { key: 'overview', label: 'Tổng quan' },
@@ -134,6 +154,7 @@ export default function RoomDetailPage() {
 
   const r = room.data
   const ex = EXTRA[r.name] ?? EXTRA.Standard
+  const photos = ROOM_PHOTOS[r.name] ?? ROOM_PHOTOS.Standard
 
   return (
     <>
@@ -156,13 +177,13 @@ export default function RoomDetailPage() {
           {tab === 'overview' && (
             <>
               <div className={`gal-main rv ${ex.cls}`}>
-                <span className="gal-emoji" key={shot}>{ex.shots[shot].emoji}</span>
+                <img className="gal-photo" key={shot} src={photos[shot]} alt={`${ex.shots[shot].label} · ${r.name}`} />
                 <span className="gal-cap">{ex.shots[shot].label}</span>
               </div>
               <div className="gal-thumbs">
                 {ex.shots.map((s, i) => (
                   <button key={s.label} type="button" className={i === shot ? 'on' : ''} onClick={() => setShot(i)}>
-                    <span>{s.emoji}</span>
+                    <img src={photos[i]} alt="" loading="lazy" />
                     <small>{s.label}</small>
                   </button>
                 ))}

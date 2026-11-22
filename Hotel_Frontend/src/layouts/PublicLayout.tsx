@@ -3,6 +3,8 @@ import { useAuth } from '../store/auth'
 import Dropdown from '../components/Dropdown'
 import LangSwitch from '../components/LangSwitch'
 import TopProgress from '../components/TopProgress'
+import BrandLogo from '../components/BrandLogo'
+import NotificationsBell from '../components/NotificationsBell'
 
 export default function PublicLayout() {
   const { user, logout } = useAuth()
@@ -21,8 +23,7 @@ export default function PublicLayout() {
             if (pathname === '/') window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
         >
-          <span className="logo-mark">S</span>
-          Sứ Hotel
+          <BrandLogo />
         </Link>
 
         <nav>
@@ -41,6 +42,7 @@ export default function PublicLayout() {
           </Dropdown>
         </nav>
 
+        {user && <NotificationsBell />}
         {user ? (
           <Dropdown
             align="right"
@@ -73,7 +75,7 @@ export default function PublicLayout() {
       <footer className="site-foot">
         <div className="foot-in">
           <div>
-            <div className="logo"><span className="logo-mark">S</span>Sứ Hotel</div>
+            <div className="logo"><BrandLogo tagline="HOSPITALITY · VIETNAM" /></div>
             <p>Hệ thống khách sạn ba chi nhánh, đặt phòng nhanh chóng và giá rõ ràng.</p>
           </div>
           <div>

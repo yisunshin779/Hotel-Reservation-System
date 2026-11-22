@@ -39,6 +39,9 @@ Các API sẽ cần thêm ở các bước sau (điền khi làm tới):
 | Check-in | POST | `/staff/reservations/{id}/check-in` | [ ] |
 | Check-out | POST | `/staff/reservations/{id}/check-out` | [ ] |
 | Báo cáo doanh thu | GET | `/reports/revenue?days=7` | [ ] |
+| Thông báo của tôi | GET | `/notifications/me` | [ ] |
+| Đánh dấu đã đọc | PATCH | `/notifications/{id}/read` | [ ] |
+| Đánh dấu tất cả đã đọc | PATCH | `/notifications/me/read-all` | [ ] |
 
 ## 2. Tên trường dữ liệu cần đối chiếu (`src/types.ts`)
 
@@ -50,7 +53,7 @@ Nếu backend đặt tên khác, sửa trong `types.ts` (hoặc đổi tên khi 
 - [ ] **Availability**: `roomType, available, total` — `total` do backend tính (gồm phụ thu cuối tuần, lễ, khuyến mãi) hay frontend tự tính?
 - [ ] **Reservation**: `reservationId, code, guestName, roomTypeName, checkInDate, checkOutDate, totalAmount, paidAmount, status, holdExpiresAt`
 - [ ] **ReservationStatus**: `Pending, Confirmed, CheckedIn, CheckedOut, Cancelled, Expired, NoShow` — khớp với enum của backend?
-- [ ] **RoomStatus**: `Available, Occupied, Dirty, Maintenance`
+- [ ] **RoomStatus**: `Available, Occupied, Dirty, Cleaning, Maintenance` (phòng Dirty → Cleaning → Available)
 - [ ] **CreateReservation**: `branchId, roomTypeId, quantity, checkIn, checkOut, guestName, phone, note, promoCode`
 
 ## 3. Quy tắc nghiệp vụ cần backend xác nhận
@@ -67,3 +70,7 @@ Nếu backend đặt tên khác, sửa trong `types.ts` (hoặc đổi tên khi 
 2. Sửa đường dẫn và tên trường theo bảng đã đối chiếu ở trên
 3. Chạy lại toàn bộ luồng: đăng nhập, tìm phòng, đặt phòng, thanh toán, đơn của tôi, hủy đơn
 4. Xóa các đoạn `MOCK_*` và `localStorage` không còn dùng
+
+API cập nhật trạng thái phòng cần chấp nhận `Cleaning` cho luồng dọn phòng: `Dirty` → `Cleaning` → `Available`.
+
+Thông báo trả về theo cấu trúc `Notification[]` gồm `id, kind, title, message, href, createdAt, readAt`. Thông báo mock hiện lưu riêng trong trình duyệt. Khi dùng API thật, backend nên tạo thông báo theo sự kiện đơn (đặt mới, thanh toán, hủy, check-in, check-out) và chạy tác vụ nhắc nhận phòng trước ngày đến; frontend chỉ đọc danh sách và cập nhật trạng thái đã đọc.

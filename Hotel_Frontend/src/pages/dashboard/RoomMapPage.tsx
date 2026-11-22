@@ -8,6 +8,7 @@ const LABEL: Record<RoomStatus, string> = {
   Available: 'Sẵn sàng',
   Occupied: 'Có khách',
   Dirty: 'Cần dọn',
+  Cleaning: 'Đang dọn',
   Maintenance: 'Bảo trì',
 }
 
@@ -15,7 +16,8 @@ const LABEL: Record<RoomStatus, string> = {
 const ACTIONS: Record<RoomStatus, { label: string; to: RoomStatus }[]> = {
   Available: [{ label: 'Khóa bảo trì', to: 'Maintenance' }],
   Occupied: [],
-  Dirty: [{ label: 'Đã dọn xong', to: 'Available' }],
+  Dirty: [{ label: 'Bắt đầu dọn', to: 'Cleaning' }],
+  Cleaning: [{ label: 'Hoàn tất dọn', to: 'Available' }],
   Maintenance: [{ label: 'Mở lại phòng', to: 'Available' }],
 }
 
@@ -24,6 +26,7 @@ const FILTERS: { key: RoomStatus | 'all'; label: string }[] = [
   { key: 'Available', label: LABEL.Available },
   { key: 'Occupied', label: LABEL.Occupied },
   { key: 'Dirty', label: LABEL.Dirty },
+  { key: 'Cleaning', label: LABEL.Cleaning },
   { key: 'Maintenance', label: LABEL.Maintenance },
 ]
 

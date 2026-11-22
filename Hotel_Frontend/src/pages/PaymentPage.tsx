@@ -2,18 +2,28 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { BookingApi } from '../api/hotel'
+import { NotificationApi } from '../api/notifications'
+import { useAuth } from '../store/auth'
 import { vnd } from '../lib'
 
 export default function PaymentPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const user = useAuth((state) => state.user)
   const [method, setMethod] = useState<'QR' | 'CASH'>('QR')
   const [now, setNow] = useState(Date.now())
 
   const q = useQuery({ queryKey: ['reservation', id], queryFn: () => BookingApi.get(id) })
   const pay = useMutation({
     mutationFn: () => BookingApi.pay(id, method),
-    onSuccess: () => navigate('/my-bookings', { replace: true }),
+    onSuccess: () => {
+      const reservation = q.data
+      if (reservation) {
+        NotificationApi.recordMock({ recipientId: user?.id, kind: 'payment', title: 'Thanh toán thành công', message: `Đơn ${reservation.code} đã được xác nhận.`, href: '/my-bookings', eventKey: `payment:${reservation.reservationId}` })
+        NotificationApi.recordMock({ audience: 'staff', kind: 'payment', title: 'Đơn đã được thanh toán', message: `${reservation.code} · ${reservation.guestName}`, href: '/dashboard/reservations', eventKey: `staff-payment:${reservation.reservationId}` })
+      }
+      navigate('/my-bookings', { replace: true })
+    },
   })
 
   // Cứ nửa giây cập nhật "bây giờ" một lần để đồng hồ chạy

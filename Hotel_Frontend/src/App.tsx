@@ -21,6 +21,7 @@ import BookingPage from './pages/BookingPage'
 import PaymentPage from './pages/PaymentPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import RoomMapPage from './pages/dashboard/RoomMapPage'
+import HousekeepingPage from './pages/dashboard/HousekeepingPage'
 import ReservationsPage from './pages/dashboard/ReservationsPage'
 import ReportsPage from './pages/dashboard/ReportsPage'
 import PricingPage from './pages/dashboard/PricingPage'
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="dashboard" element={<DashboardLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="rooms" element={<RoomMapPage />} />
+          <Route path="housekeeping" element={<HousekeepingPage />} />
           <Route path="reservations" element={<ReservationsPage />} />
 
           <Route element={<RequireRole roles={['manager', 'admin']} />}>
