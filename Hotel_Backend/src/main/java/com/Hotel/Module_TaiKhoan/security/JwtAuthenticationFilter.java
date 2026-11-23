@@ -1,16 +1,18 @@
 package com.Hotel.Module_TaiKhoan.security;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.Hotel.Module_TaiKhoan.repository.AccountRepository;
+
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,56 +20,46 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private final JwtTokenProvider tokenProvider;
+    private final AccountRepository accounts;
 
-    // Constructor Injection
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, AccountRepository accounts) {
         this.tokenProvider = tokenProvider;
+        this.accounts = accounts;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        try {
-            // 1. Trích xuất token từ header "Authorization" của request
-            String jwt = getJwtFromRequest(request);
-
-            // 2. Nếu có token và token hợp lệ
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String email = tokenProvider.getEmailFromJwt(jwt);
-                String role = tokenProvider.getRoleFromJwt(jwt);
-
-                // Chuẩn hóa tiền tố ROLE_ đề phòng dữ liệu cũ thiếu prefix
-                String authority = (role == null || role.isBlank())
-                                ? "ROLE_USER"
-                                : (role.startsWith("ROLE_") ? role : "ROLE_" + role);
-
-                UserDetails userDetails = User.withUsername(email)
-                        .password("")
-                        .authorities(authority)
-                        .build();
-
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain chain) throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            UUID accountId = readAccountId(header.substring(7));
+            if (accountId != null) {
+                accounts.findById(accountId)
+                        .filter(account -> "DA_KICH_HOAT".equals(account.getTrangThai()))
+                        .ifPresent(account -> authenticate(account.getEmail(), account.getVaiTro()));
             }
-        } catch (Exception ex) {
-            System.out.println("Không thể thiết lập xác thực người dùng trong Security Context: " + ex.getMessage());
         }
-
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
     }
 
-    private String getJwtFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        // Theo chuẩn OAuth2, Token luôn bắt đầu bằng chữ "Bearer "
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7); // Cắt lấy chuỗi token ở phía sau
+    private UUID readAccountId(String token) {
+        try {
+            return tokenProvider.readAccountId(token);
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
         }
-        return null;
+    }
+
+    private void authenticate(String email, String role) {
+        if (role == null || role.isBlank()) {
+            return;
+        }
+        String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        var user = User.withUsername(email).password("")
+                .authorities(new SimpleGrantedAuthority(authority)).build();
+        var context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+        SecurityContextHolder.setContext(context);
     }
 }

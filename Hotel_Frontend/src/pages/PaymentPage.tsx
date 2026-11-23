@@ -11,7 +11,7 @@ export default function PaymentPage() {
   const navigate = useNavigate()
   const user = useAuth((state) => state.user)
   const [method, setMethod] = useState<'QR' | 'CASH'>('QR')
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
 
   const q = useQuery({ queryKey: ['reservation', id], queryFn: () => BookingApi.get(id) })
   const pay = useMutation({

@@ -54,7 +54,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.CREATED).body(reservationId);
             
         } catch (IllegalStateException e) {
-            // Xử lý lỗi HTTP 409 (Conflict) nếu hết phòng hoặc không lấy được khóa Redisson
+            // Xử lý lỗi HTTP 409 (Conflict) nếu hết phòng.
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
             
         } catch (IllegalArgumentException e) {

@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: ${HOTEL_DB_URL}
+    username: ${HOTEL_DB_USER}
+    password: ${HOTEL_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate

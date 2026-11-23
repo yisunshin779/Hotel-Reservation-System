@@ -1,6 +1,6 @@
-
-# Maven build output
-Hotel_Backend/target/
-
-# Local report demo database and process logs
+.tools/
+**/node_modules/
+**/dist/
+**/target/
+*.log
 .local/

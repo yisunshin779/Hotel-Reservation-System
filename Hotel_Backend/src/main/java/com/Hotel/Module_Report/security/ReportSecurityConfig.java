@@ -18,7 +18,10 @@ public class ReportSecurityConfig {
     }
     @Bean @Order(1)
     SecurityFilterChain reportSecurity(HttpSecurity http, ReportIdentityService users) throws Exception {
-        return http.securityMatcher("/api/reports/**").userDetailsService(users)
+        var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
+        provider.setUserDetailsService(users);
+        provider.setPasswordEncoder(reportPasswordEncoder());
+        return http.securityMatcher("/api/reports/**").authenticationManager(new org.springframework.security.authentication.ProviderManager(provider))
                 .csrf(csrf -> csrf.disable()).requestCache(cache -> cache.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.anyRequest().hasAnyRole("ADMIN", "MANAGER"))
@@ -31,10 +34,5 @@ public class ReportSecurityConfig {
                     response.setStatus(403); response.setContentType("application/json");
                     response.getWriter().write("{\"status\":403,\"message\":\"Report access denied\"}");
                 })).build();
-    }
-    // No changes to the access rules of modules outside /api/reports.
-    @Bean @Order(2)
-    SecurityFilterChain otherModules(HttpSecurity http) throws Exception {
-        return http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> auth.anyRequest().permitAll()).build();
     }
 }

@@ -3,3 +3,9 @@ spring:
     url: jdbc:postgresql://127.0.0.1:5432/hotel_report_demo
     username: postgres
     password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: none
+app:
+  public-base-url: ${HOTEL_PUBLIC_BASE_URL:http://localhost:8080}
+  frontend-base-url: ${HOTEL_FRONTEND_BASE_URL:http://localhost:5173}

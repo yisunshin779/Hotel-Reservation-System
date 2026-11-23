@@ -24,11 +24,15 @@ import java.io.ByteArrayInputStream;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {"spring.jpa.hibernate.ddl-auto=none", "hotel.payment.expiry-enabled=false"})
 @AutoConfigureMockMvc
 @Transactional
 @Sql("/report-fixture.sql")
 class ReportIntegrationTest {
+    // Booking infrastructure has separate Redis and legacy JPA tables.
+    @org.springframework.boot.test.mock.mockito.MockBean org.redisson.api.RedissonClient redissonClient;
+    @org.springframework.boot.test.mock.mockito.MockBean com.Hotel.Module_DatPhong.service.BookingService bookingService;
+
     private static final EmbeddedPostgres POSTGRES = startPostgres();
     private static final String ROOT = "/api/reports/revenue";
     @Autowired MockMvc mvc;
