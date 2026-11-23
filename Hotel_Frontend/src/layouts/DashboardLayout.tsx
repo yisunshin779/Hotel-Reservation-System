@@ -3,6 +3,8 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../store/auth'
 import PageTransition from '../components/PageTransition'
 import TopProgress from '../components/TopProgress'
+import BrandLogo from '../components/BrandLogo'
+import NotificationsBell from '../components/NotificationsBell'
 
 const ROLE_LABEL: Record<string, string> = {
   receptionist: 'Lễ tân',
@@ -17,6 +19,7 @@ const GROUPS = [
     items: [
       { to: '/dashboard', label: 'Tổng quan', end: true },
       { to: '/dashboard/rooms', label: 'Sơ đồ phòng' },
+      { to: '/dashboard/housekeeping', label: 'Dọn phòng' },
       { to: '/dashboard/reservations', label: 'Đơn đặt phòng' },
     ],
   },
@@ -33,6 +36,7 @@ const GROUPS = [
 const TITLES: Record<string, string> = {
   '/dashboard': 'Tổng quan',
   '/dashboard/rooms': 'Sơ đồ phòng',
+  '/dashboard/housekeeping': 'Công việc dọn phòng',
   '/dashboard/reservations': 'Đơn đặt phòng',
   '/dashboard/reports': 'Báo cáo',
   '/dashboard/pricing': 'Giá & khuyến mãi',
@@ -53,8 +57,7 @@ export default function DashboardLayout() {
 
       <aside className={`dsh-side ${open ? 'open' : ''}`}>
         <Link to="/dashboard" className="dsh-brand">
-          <span className="dsh-mark">S</span>
-          Sứ Hotel
+          <BrandLogo />
           <small>Quản lý</small>
         </Link>
 
@@ -88,6 +91,7 @@ export default function DashboardLayout() {
         <header className="dsh-top">
           <button className="dsh-burger" onClick={() => setOpen(true)} aria-label="Mở menu">☰</button>
           <span className="dsh-crumb">{TITLES[pathname] ?? 'Quản lý'}</span>
+          <NotificationsBell />
           <Link to="/" className="btn">← Trang khách</Link>
         </header>
         <main className="dsh-main"><PageTransition /></main>

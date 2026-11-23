@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import HeroFx from '../components/HeroFx'
 import Icon from '../components/Icon'
+import BrandLogo from '../components/BrandLogo'
 
 const EXPLORE = [
   { to: '/branches', icon: 'building', title: 'Chi nhánh', text: 'Ba điểm đến tại Hà Nội, Đà Nẵng và TP.HCM, mỗi nơi một phong cách.', more: 'Xem các chi nhánh' },
@@ -14,7 +15,7 @@ export default function HomePage() {
       <section className="home-hero hero-photo hero-about hero-lg">
         <HeroFx />
         <div className="hero-text">
-          <span className="badge-top">Hệ thống khách sạn Sứ Hotel</span>
+          <div className="hero-brand"><BrandLogo tagline="HỆ THỐNG KHÁCH SẠN" /></div>
           <h1>Nơi nghỉ ngơi trọn vẹn<br />cho mỗi chuyến đi</h1>
           <p>Đặt phòng nhanh chóng, giá rõ ràng, xác nhận ngay.</p>
           <div className="hero-cta">

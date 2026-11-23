@@ -89,3 +89,68 @@
   .dsh-main { padding: 18px 14px 50px; }
   .occ-row { grid-template-columns: 1fr; gap: 6px; }
 }
+
+/* Polished dashboard overview and reservation workspace */
+.dsh-main > h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -.03em; }
+.dsh-main .ov-hello { margin: 0; }
+.ov-sub { display: flex; align-items: center; gap: 8px; margin: 8px 0 30px; font-size: 14px; }
+.ov-heading { align-items: center; margin: 30px 0 14px; }
+.ov-heading h2 { font-size: 17px; letter-spacing: -.01em; }
+.ov-metrics { gap: 14px; }
+.ov-metrics .stat { position: relative; min-height: 116px; padding: 20px; border-radius: 16px; box-shadow: 0 5px 18px rgba(43,31,20,.045); }
+.ov-metrics .stat .price { margin-top: 12px; font-size: 30px; line-height: 1; }
+.ov-metrics .stat .dot { margin-right: 7px; }
+.todo { gap: 14px; }
+.todo-card { min-height: 145px; justify-content: center; padding: 20px 22px; border-radius: 16px; box-shadow: 0 5px 18px rgba(43,31,20,.04); }
+.todo-card b { font-size: 34px; }
+.todo-card em { display: inline-flex; align-items: center; gap: 6px; }
+.dsh-main > .search { display: block; width: min(100%, 440px); max-width: none; margin: 12px 0 18px; padding: 12px 14px; border-radius: 11px; background: #fff; box-shadow: 0 3px 12px rgba(43,31,20,.035); }
+.dsh-main > .card.wrap { padding: 4px 18px 10px; border-radius: 16px; box-shadow: 0 8px 26px rgba(43,31,20,.055); }
+.dsh-main table { min-width: 850px; }
+.dsh-main th { padding: 14px 12px; color: var(--mut); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+.dsh-main td { padding: 14px 12px; vertical-align: middle; }
+.dsh-main tbody tr { transition: background .18s ease; }
+.dsh-main tbody tr:hover { background: #fcf8f2; }
+.dsh-main td:nth-child(1) { color: var(--pri); font-weight: 700; white-space: nowrap; }
+.dsh-main td:nth-child(6), .dsh-main td:nth-child(7) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dsh-main td:nth-child(8) { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.dsh-main td:last-child { min-width: 190px; }
+.dsh-main td .btn { padding: 7px 10px; font-size: 12px; white-space: nowrap; }
+.dsh-main > .err { padding: 12px 14px; border: 1px solid #f0c8c3; border-radius: 10px; background: #fff5f4; }
+@media (max-width: 650px) {
+  .ov-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-metrics .stat { min-height: 105px; padding: 15px; font-size: 13px; }
+  .ov-metrics .stat .price { font-size: 26px; }
+  .todo-card { min-height: 120px; }
+  .dsh-main > .card.wrap { padding: 4px 10px 10px; }
+}
+
+/* Housekeeping queue */
+.house-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; }
+.house-head h1 { margin: 0; }
+.house-head p { margin: 7px 0 0; }
+.house-updated { color: var(--mut); font-size: 12px; white-space: nowrap; }
+.house-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0 24px; }
+.house-summary-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 17px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--mut); }
+.house-summary-card b { color: var(--ink); font-size: 26px; font-variant-numeric: tabular-nums; }
+.house-summary-card.dirty { border-color: #ead5b8; background: #fffaf3; }
+.house-summary-card.cleaning { border-color: #ead0ba; background: #fff7ef; }
+.house-queue { display: grid; gap: 10px; }
+.house-card { display: grid; grid-template-columns: 110px minmax(120px, 1fr) 130px auto; align-items: center; gap: 18px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 4px 16px rgba(43,31,20,.035); }
+.house-room-id { display: flex; align-items: baseline; gap: 9px; }
+.house-room-id span, .house-room-meta span { color: var(--mut); font-size: 12px; }
+.house-room-id b { color: var(--pri); font-size: 22px; }
+.house-room-meta { display: grid; gap: 3px; }
+.house-status { width: fit-content; padding: 5px 10px; border-radius: 99px; background: #fff1df; color: #87501f; font-size: 12px; font-weight: 600; }
+.house-status.cleaning { background: #f6eadf; color: #82552f; }
+.house-card .btn { white-space: nowrap; }
+.house-empty { display: grid; gap: 6px; padding: 24px; }
+.house-empty span { color: var(--mut); }
+@media (max-width: 700px) {
+  .house-head { align-items: flex-start; flex-direction: column; }
+  .house-summary { grid-template-columns: 1fr; gap: 8px; }
+  .house-summary-card { padding: 13px 16px; }
+  .house-card { grid-template-columns: 1fr auto; gap: 10px 14px; padding: 14px; }
+  .house-status { justify-self: end; }
+  .house-card .btn { grid-column: 1 / -1; width: 100%; }
+}

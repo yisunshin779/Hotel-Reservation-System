@@ -244,3 +244,56 @@ body { background: var(--bg); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   .about-visual-orbit, .about-image, .about-image-photo, .about-image-shine, .about-visual-note { animation: none; }
 }
+
+/* Room photography */
+.room-card .rv { position: relative; overflow: hidden; }
+.room-card .rv img { display: block; width: 100%; height: 100%; min-height: 190px; object-fit: cover; transition: transform .5s ease; }
+.room-card:hover .rv img { transform: scale(1.04); }
+.room-card .rv-emoji { position: absolute; right: 12px; bottom: 12px; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.88); box-shadow: 0 3px 12px rgba(0,0,0,.14); }
+.gal-main { position: relative; overflow: hidden; }
+.gal-main .gal-photo { display: block; width: 100%; height: 100%; min-height: 360px; object-fit: cover; }
+.gal-thumbs button { overflow: hidden; padding: 0; }
+.gal-thumbs button img { display: block; width: 100%; height: 68px; object-fit: cover; }
+.gal-thumbs button small { display: block; padding: 7px 4px; }
+@media (max-width: 600px) { .gal-main .gal-photo { min-height: 250px; } }
+
+/* Sứ Hotel brand system */
+.brand-lockup { display: inline-flex; align-items: center; gap: 10px; color: var(--pri); text-decoration: none; }
+.brand-symbol { display: block; flex: none; width: 38px; height: 38px; color: #9b541f; }
+.brand-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; line-height: 1; }
+.brand-name { color: inherit; font: 700 18px/1.1 var(--font); letter-spacing: -.035em; }
+.brand-tagline { color: var(--mut); font: 600 9px/1.2 var(--font); letter-spacing: .13em; }
+.top .brand-lockup { color: var(--ink); }
+.top .brand-symbol { width: 36px; height: 36px; }
+.site-foot .brand-lockup { color: #fff; }
+.site-foot .brand-tagline { color: #c9b69d; }
+.hero-brand { display: flex; justify-content: center; margin: 0 auto 18px; animation: fadeUp .6s ease both; }
+.hero-brand .brand-lockup { flex-direction: column; gap: 8px; color: #fff; }
+.hero-brand .brand-symbol { width: 54px; height: 54px; color: #b87332; filter: drop-shadow(0 5px 14px rgba(0,0,0,.25)); }
+.hero-brand .brand-copy { align-items: center; gap: 5px; }
+.hero-brand .brand-name { font-size: 21px; }
+.hero-brand .brand-tagline { color: #e8b978; font-size: 10px; letter-spacing: .2em; }
+@media (max-width: 600px) { .top .brand-symbol { width: 32px; height: 32px; } .brand-name { font-size: 16px; } }
+.dsh-brand .brand-symbol, .site-foot .brand-symbol { color: #b87332; }
+
+/* In-app notifications */
+.notification-trigger { position: relative; display: inline-grid; place-items: center; width: 25px; height: 25px; font-size: 20px; line-height: 1; }
+.notification-count { position: absolute; top: -7px; right: -10px; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid #fff; border-radius: 99px; background: #b64032; color: #fff; font-size: 10px; font-weight: 700; line-height: 13px; text-align: center; }
+.notification-panel { width: min(370px, calc(100vw - 28px)); max-height: min(470px, 70vh); overflow: auto; }
+.dd-menu:has(.notification-panel) { padding: 0; }
+.notification-heading { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.notification-heading button { padding: 0; border: 0; background: none; color: var(--pri); font: 600 12px var(--font); cursor: pointer; }
+.notification-item { display: flex !important; align-items: flex-start; gap: 11px; padding: 13px 16px !important; border-bottom: 1px solid #f1ece5 !important; white-space: normal; }
+.notification-item:hover { background: #faf6ef !important; }
+.notification-item.unread { background: #fffaf2 !important; }
+.notification-dot { flex: none; width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: #b87332; }
+.notification-dot.payment { background: #398461; }
+.notification-dot.cancellation { background: #b64032; }
+.notification-copy { display: grid; gap: 4px; min-width: 0; }
+.notification-copy b { color: var(--ink); font-size: 13px; }
+.notification-copy > span { color: var(--mut); font-size: 12px; line-height: 1.45; }
+.notification-copy small { color: #988775; font-size: 10px; }
+.notification-empty { margin: 0; padding: 20px 16px; color: var(--mut); font-size: 13px; text-align: center; }
+.notification-trigger svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dsh-top .dd { margin-left: auto; }
+.dd:has(.notification-trigger) .caret { display: none; }

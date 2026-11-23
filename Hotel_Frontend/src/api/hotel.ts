@@ -1,8 +1,9 @@
 import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem, Review } from '../types'
 import { api } from './client'
 import { nightsBetween, today } from '../lib'
+import { useAuth } from '../store/auth'
 
-const USE_MOCK = true // đổi thành false khi backend có API thật
+export const USE_MOCK = true // đổi thành false khi backend có API thật
 
 // ---------- Đăng nhập ----------
 const MOCK_USERS: Record<string, { password: string; user: User }> = {
@@ -159,6 +160,7 @@ export const BookingApi = {
       const res: Reservation = {
         reservationId: crypto.randomUUID(),
         branchId: b.branchId,
+        guestId: useAuth.getState().user?.id,
         quantity: b.quantity,
         code: 'HRS-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
         guestName: b.guestName,

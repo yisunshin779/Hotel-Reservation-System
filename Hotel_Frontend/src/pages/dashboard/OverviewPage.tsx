@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { BranchApi, ReportApi, RoomApi, StaffBookingApi } from '../../api/hotel'
 import { useAuth } from '../../store/auth'
 import { today, vnd } from '../../lib'
+import { useEffect } from 'react'
+import { NotificationApi } from '../../api/notifications'
 
 export default function OverviewPage() {
   const user = useAuth((s) => s.user)
@@ -23,6 +25,10 @@ export default function OverviewPage() {
   })
   const report = useQuery({ queryKey: ['report-summary'], queryFn: ReportApi.summary, enabled: !isRecep })
 
+  useEffect(() => {
+    if (res.data) NotificationApi.notifyStaffSchedule(res.data)
+  }, [res.data])
+
   const allRooms = rooms.data ?? []
   const list = res.data ?? []
   const count = (s: string) => allRooms.filter((r) => r.status === s).length
@@ -36,7 +42,7 @@ export default function OverviewPage() {
   const todo = [
     { to: '/dashboard/reservations', n: arrivals, label: 'Khách chờ nhận phòng' },
     { to: '/dashboard/reservations', n: departures, label: 'Khách đến hạn trả phòng' },
-    { to: '/dashboard/rooms', n: count('Dirty'), label: 'Phòng cần dọn' },
+    { to: '/dashboard/housekeeping', n: count('Dirty') + count('Cleaning'), label: 'Phòng trong hàng đợi dọn' },
   ]
 
   return (

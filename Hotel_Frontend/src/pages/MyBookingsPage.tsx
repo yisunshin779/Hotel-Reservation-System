@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { BookingApi } from '../api/hotel'
+import { NotificationApi } from '../api/notifications'
 import ReviewDialog from '../components/ReviewDialog'
 import { STATUS_LABEL, serviceTotal, vnd } from '../lib'
+import { useAuth } from '../store/auth'
 import type { Reservation } from '../types'
 import ExitMount from '../components/ExitMount'
 
@@ -12,9 +14,20 @@ export default function MyBookingsPage() {
   const [reviewing, setReviewing] = useState<Reservation | null>(null)
   const list = useQuery({ queryKey: ['my-reservations'], queryFn: BookingApi.mine })
 
+  useEffect(() => {
+    if (list.data) NotificationApi.remindUpcoming(list.data)
+  }, [list.data])
+
   const cancel = useMutation({
     mutationFn: BookingApi.cancel,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-reservations'] }),
+    onSuccess: (_result, id) => {
+      const reservation = list.data?.find((item) => item.reservationId === id)
+      if (reservation) {
+        NotificationApi.recordMock({ recipientId: useAuth.getState().user?.id, kind: 'cancellation', title: 'Đơn đặt phòng đã hủy', message: `Đơn ${reservation.code} đã được hủy theo yêu cầu của bạn.`, href: '/my-bookings', eventKey: `cancel:${reservation.reservationId}` })
+        NotificationApi.recordMock({ audience: 'staff', kind: 'cancellation', title: 'Khách vừa hủy đơn', message: `${reservation.code} · ${reservation.guestName}`, href: '/dashboard/reservations', eventKey: `staff-cancel:${reservation.reservationId}` })
+      }
+      queryClient.invalidateQueries({ queryKey: ['my-reservations'] })
+    },
   })
 
   return (

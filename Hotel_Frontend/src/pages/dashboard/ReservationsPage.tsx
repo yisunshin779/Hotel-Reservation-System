@@ -5,6 +5,7 @@ import StayDialog from '../../components/StayDialog'
 import { useAuth } from '../../store/auth'
 import { STATUS_LABEL, serviceTotal, vnd } from '../../lib'
 import ExitMount from '../../components/ExitMount'
+import { NotificationApi } from '../../api/notifications'
 
 export default function ReservationsPage() {
   const [q, setQ] = useState('')
@@ -25,9 +26,26 @@ export default function ReservationsPage() {
   }
   const checkIn = useMutation({
     mutationFn: (v: { id: string; idNumber: string }) => StaffBookingApi.checkIn(v.id, v.idNumber),
-    onSuccess: refresh,
+    onSuccess: (_result, values) => {
+      const reservation = list.data?.find((item) => item.reservationId === values.id)
+      if (reservation) {
+        NotificationApi.recordMock({ recipientId: reservation.guestId, kind: 'arrival', title: 'Bạn đã nhận phòng', message: `Đơn ${reservation.code} · Phòng ${(reservation.roomNumbers ?? []).join(', ') || reservation.roomNumber || ''}`, href: '/my-bookings', eventKey: `check-in:${reservation.reservationId}` })
+        NotificationApi.recordMock({ audience: 'staff', kind: 'arrival', title: 'Khách đã nhận phòng', message: `${reservation.guestName} · ${reservation.code}`, href: '/dashboard/reservations', eventKey: `staff-check-in:${reservation.reservationId}` })
+      }
+      refresh()
+    },
   })
-  const checkOut = useMutation({ mutationFn: StaffBookingApi.checkOut, onSuccess: refresh })
+  const checkOut = useMutation({
+    mutationFn: StaffBookingApi.checkOut,
+    onSuccess: (_result, id) => {
+      const reservation = list.data?.find((item) => item.reservationId === id)
+      if (reservation) {
+        NotificationApi.recordMock({ recipientId: reservation.guestId, kind: 'departure', title: 'Cảm ơn bạn đã lưu trú', message: `Đơn ${reservation.code} đã hoàn tất. Chúc bạn một hành trình thuận lợi!`, href: '/my-bookings', eventKey: `check-out:${reservation.reservationId}` })
+        NotificationApi.recordMock({ audience: 'staff', kind: 'departure', title: 'Đã hoàn tất trả phòng', message: `${reservation.guestName} · ${reservation.code}`, href: '/dashboard/reservations', eventKey: `staff-check-out:${reservation.reservationId}` })
+      }
+      refresh()
+    },
+  })
 
   // Phím tắt F2: đưa con trỏ vào ô tìm kiếm
   useEffect(() => {

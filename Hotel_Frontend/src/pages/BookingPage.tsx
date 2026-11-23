@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { BookingApi } from '../api/hotel'
+import { NotificationApi } from '../api/notifications'
 import { useAuth } from '../store/auth'
 import { nightsBetween, vnd } from '../lib'
 import type { Availability, SearchParams } from '../types'
@@ -21,7 +22,11 @@ export default function BookingPage() {
 
   const create = useMutation({
     mutationFn: BookingApi.create,
-    onSuccess: (r) => navigate(`/pay/${r.reservationId}`, { replace: true }),
+    onSuccess: (r) => {
+      NotificationApi.recordMock({ recipientId: user.id, kind: 'booking', title: 'Đã giữ phòng thành công', message: `Đơn ${r.code} đang chờ thanh toán.`, href: '/my-bookings', eventKey: `booking:${r.reservationId}` })
+      NotificationApi.recordMock({ audience: 'staff', kind: 'booking', title: 'Có đơn đặt phòng mới', message: `${r.guestName} · ${r.roomTypeName} · ${r.checkInDate}`, href: '/dashboard/reservations', eventKey: `staff-booking:${r.reservationId}` })
+      navigate(`/pay/${r.reservationId}`, { replace: true })
+    },
   })
 
   // Vào thẳng /book mà chưa chọn phòng thì quay về trang about 
