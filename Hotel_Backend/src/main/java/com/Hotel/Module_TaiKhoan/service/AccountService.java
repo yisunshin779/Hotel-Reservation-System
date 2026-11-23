@@ -28,7 +28,7 @@ public class AccountService {
 
     @Transactional
     public AccountProfileResponseDTO updateCurrentProfile(String email, UpdateProfileRequestDTO request) {
-        Account account = accountRepository.findByEmail(email)
+        Account account = accountRepository.lockByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thông tin tài khoản."));
 
         account.setHoTen(request.getHoTen().trim());
@@ -58,7 +58,7 @@ public class AccountService {
 
     @Transactional
     public AccountProfileResponseDTO updateAccountRole(UUID targetAccountId, String newRole, String adminEmail) {
-        Account target = accountRepository.findById(targetAccountId)
+        Account target = accountRepository.lockById(targetAccountId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với ID này."));
 
         if (target.getEmail().equalsIgnoreCase(adminEmail)) {
@@ -72,7 +72,7 @@ public class AccountService {
 
     @Transactional
     public AccountProfileResponseDTO updateAccountStatus(UUID targetAccountId, String newStatus, String adminEmail) {
-        Account target = accountRepository.findById(targetAccountId)
+        Account target = accountRepository.lockById(targetAccountId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với ID này."));
 
         if (target.getEmail().equalsIgnoreCase(adminEmail)) {

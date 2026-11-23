@@ -10,6 +10,8 @@
 - `sql/04_reports.sql`: truy vấn tham khảo.
 - `sql/05_checkin_checkout.sql`: migration bảo vệ tài chính và hóa đơn cho UC16/UC19; chạy sau schema/operations (và seed nếu tạo DB mới). Xem `../Hotel_Backend/README.md` để chạy API và integration tests.
 - `sql/06_stay_contracts.sql`: migration theo báo cáo OC16/17/19 và nhánh hoàn tiền OC11; hồ sơ người ở, đổi/nâng hạng phòng, snapshot giá, điều chuyển tồn phòng, cấu hình thuế/phí và yêu cầu gửi hóa đơn. Chạy sau 05.
+- `sql/07_payment.sql`: UC08, lựa chọn QR/tiền mặt, snapshot nghĩa vụ thanh toán và yêu cầu gửi xác nhận đặt phòng; chạy sau 06. API và truy vết yêu cầu tại `../Hotel_Backend/src/main/java/com/Hotel/Module_Payment/README.md`.
+- `sql/08_invoice_adjustments.sql`: OC-19.03, chỉ Admin lập hóa đơn điều chỉnh có lý do sau đóng; lưu riêng, không sửa hóa đơn gốc. Chạy sau 06 (hoặc 07 nếu dùng Payment).
 - `tests/`: smoke/negative tests và hướng dẫn race-condition 2 session.
 - `diagrams/`: ERD tổng thể (PNG/SVG/DOT).
 - `docs/`: data dictionary, design decisions, traceability, checklist.
@@ -22,6 +24,8 @@ docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP
 docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /sql/03_seed.sql
 docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /sql/05_checkin_checkout.sql
 docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /sql/06_stay_contracts.sql
+docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /sql/07_payment.sql
+docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /sql/08_invoice_adjustments.sql
 docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /tests/01_acceptance.sql
 docker compose exec -T postgres psql -U hotel_admin -d hotel_db -v ON_ERROR_STOP=1 -f /tests/02_negative_cases.sql
 ```
@@ -30,6 +34,6 @@ Dùng lại `01_schema.sql` trên database đã tạo sẽ lỗi vì không ph�
 ## Bảo mật và giới hạn triển khai
 - Các function bảo vệ kiểm tra tồn phòng chỉ an toàn khi tài khoản ứng dụng **không được trực tiếp** ghi vào bảng booking, room maintenance, room assignment. Thiết lập role/grant trong môi trường triển khai, không dùng `hotel_admin` làm tài khoản ứng dụng.
 - Payment là mô phỏng, không có giao dịch ngân hàng thật. `MOCK_QR` chỉ xác nhận trong hệ thống.
-- Backend đã có UC16/17/19 và nhánh hoàn chênh lệch tại checkout; các luồng thay đổi booking, hoàn do hủy/no-show, quản lý buồng phòng, xác thực tài khoản và chỉnh hóa đơn Admin chưa triển khai đầy đủ. Cấu hình thuế/phí không thay thế việc chốt chính sách thực tế.
+- Backend đã có UC16/17/19, hóa đơn điều chỉnh riêng của Admin và nhánh hoàn chênh lệch tại checkout; các luồng thay đổi booking, hoàn do hủy/no-show, quản lý buồng phòng và xác thực tài khoản chưa triển khai đầy đủ. Cấu hình thuế/phí không thay thế việc chốt chính sách thực tế.
 - Báo cáo doanh thu dựa vào hóa đơn đã chốt; quy ước doanh thu, VAT phải được thống nhất trước triển khai thực tế.
 - Backend có integration suite chạy trên PostgreSQL riêng, tạo lại schema chỉ trong DB test `hotel_lifecycle_test`; xem README backend. Các script SQL acceptance/negative là kiểm thử bổ sung, không thay thế test API.

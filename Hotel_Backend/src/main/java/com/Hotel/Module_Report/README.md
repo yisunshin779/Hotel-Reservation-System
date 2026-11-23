@@ -2,7 +2,7 @@
 
 Module gồm doanh thu, công suất phòng, thống kê đơn và hiệu quả khuyến mãi. Đối chiếu UC28, OC-28.01 (truy xuất), OC-28.02 (Excel), OC-28.03 (so sánh chi nhánh).
 
-## Chạy trên máy hiện tại
+## Chạy báo cáo demo
 
 Cần JDK 17+, Maven, PostgreSQL và Node.js 22.12+ để chạy frontend.
 Database demo là `hotel_report_demo`, PostgreSQL `127.0.0.1:5432`, user `postgres`.
@@ -10,14 +10,10 @@ Database demo là `hotel_report_demo`, PostgreSQL `127.0.0.1:5432`, user `postgr
 Từ `Hotel_Backend`:
 
 ```powershell
-# Nếu Java/Maven chưa có trong PATH, dùng bộ công cụ đã tải trong phiên làm việc:
-$tools = Join-Path $env:TEMP 'hotel-report-tools'
-$env:JAVA_HOME = "$tools\jdk-17.0.20.1+1"
-$env:Path = "$env:JAVA_HOME\bin;$tools\apache-maven-3.9.9\bin;$env:Path"
-
 mvn test
 mvn -DskipTests package
 
+$env:HOTEL_JWT_SECRET = '<khóa ngẫu nhiên ít nhất 32 byte UTF-8>'
 $env:DB_PASSWORD = '<mật khẩu postgres trên máy>'
 $env:REPORT_DEMO_PASSWORD = '<mật khẩu đăng nhập báo cáo demo do bạn chọn>'
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-report-demo.ps1
@@ -51,7 +47,7 @@ Tất cả `/api/reports/**` yêu cầu HTTP Basic, role ADMIN hoặc MANAGER; d
 Chưa đăng nhập/sai mật khẩu/tài khoản khóa: 401. Sai vai trò hoặc vượt phạm vi chi nhánh: 403.
 Manager tự giới hạn vào chi nhánh gắn với tài khoản; admin được chọn toàn chuỗi hoặc nhiều chi nhánh.
 Phạm vi được kiểm tra lại trong service cho cả API đọc và export. Không tin role/userId do client gửi.
-HTTP Basic là adapter xác thực riêng cho report trong lúc module đăng nhập chung chưa có; khi tích hợp auth chung cần thay adapter và giữ kiểm tra phạm vi trong service.
+Report tiếp tục dùng HTTP Basic từ `hotel.users`. JWT từ Account dùng danh tính JPA. Khi hợp nhất nguồn tài khoản, giữ kiểm tra phạm vi chi nhánh trong service.
 
 Base URL: `http://localhost:8080/api/reports`
 
@@ -178,4 +174,4 @@ npm run lint
 | So sánh chi nhánh | by-branch, bảng và biểu đồ frontend |
 | Excel đúng bộ lọc/phạm vi | ReportExportService, /export |
 
-Không sửa schema SQL hoặc module nghiệp vụ khác. Adapter auth riêng và các giới hạn lịch sử/phân bổ ở trên cần được xem xét khi tích hợp toàn hệ thống.
+Xem [README backend](../../../../../../README.md) để tra cấu hình chung và tiến độ hợp nhất tài khoản.

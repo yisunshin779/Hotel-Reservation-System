@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -40,6 +41,13 @@ public class Reservation {
     private LocalDateTime thoiGianTao;
 
     public Reservation() {
+    }
+
+    @PrePersist
+    void initializeCreationTime() {
+        if (thoiGianTao == null) {
+            thoiGianTao = LocalDateTime.now();
+        }
     }
 
     public UUID getId() { return id; }

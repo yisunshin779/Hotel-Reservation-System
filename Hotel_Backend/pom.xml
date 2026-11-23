@@ -22,6 +22,7 @@
     <properties>
         <java.version>17</java.version>
         <hotel.build.directory>${project.basedir}/target</hotel.build.directory>
+        <flyway.version>11.20.3</flyway.version>
     </properties>
 
     <dependencyManagement>
@@ -34,6 +35,15 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
         <!-- Thư viện lõi để tạo REST API -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

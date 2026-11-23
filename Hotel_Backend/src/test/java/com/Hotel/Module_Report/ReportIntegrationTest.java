@@ -24,7 +24,7 @@ import java.io.ByteArrayInputStream;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = "spring.jpa.hibernate.ddl-auto=none")
+@SpringBootTest(properties = {"spring.jpa.hibernate.ddl-auto=none", "hotel.payment.expiry-enabled=false"})
 @AutoConfigureMockMvc
 @Transactional
 @Sql("/report-fixture.sql")

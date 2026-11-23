@@ -4,7 +4,7 @@
 |---|---|---|
 | UC01–04 | users, roles, customers, auth_tokens | Lược đồ lưu dữ liệu; authentication/email ở tầng ứng dụng |
 | UC05–07 | room_types, rooms, reservations, reservation_details, reservation_nights, pricing_rules, promotions | make_reservation, available_count, nightly_rate |
-| UC08 | payments | confirm_mock_qr |
+| UC08 | payments, payment_intents, booking_confirmation_requests | PaymentService: chọn QR/tiền mặt, xác nhận QR riêng, thu tiền mặt tại quầy, cọc 30%/toàn bộ, idempotency và outbox; migration 07. confirm_mock_qr là routine legacy |
 | UC09–10 | reservations, reservation_details, payments | cancel_reservation; chức năng sửa booking chưa có stored procedure |
 | UC11 | refunds, payments | Backend hỗ trợ hoàn chênh tại checkout: CASH PENDING → xác nhận DONE, QR/thẻ mô phỏng; hoàn hủy/no-show chưa triển khai đầy đủ |
 | UC12–13 | reviews, support_requests, support_replies | Bảng lưu; nghiệp vụ kiểm quyền ở tầng ứng dụng |
@@ -12,7 +12,7 @@
 | UC16 | stay_guests, room_assignments, rooms, reservations | API xác nhận người ở và gán phòng; nâng hạng miễn phí theo cấu hình. checkin_assign là routine legacy |
 | UC17 | room_assignments, assignment_nightly_rates, stay_inventory_movements, extra_charges | RoomChangeService: đổi phòng nguyên tử, kiểm tra tồn/sức chứa, lịch sử và chênh lệch đêm còn lại; cần migration 06 |
 | UC18 | services, service_usages | add_service_usage |
-| UC19 | invoices, invoice_lines, payments, refunds, rooms, invoice_delivery_requests | API preview/thu/hoàn/chốt/xuất HTML; cấu hình thuế/phí qua migration 06; legacy folio_preview/checkout_close không thay thế API |
+| UC19 | invoices, invoice_lines, payments, refunds, rooms, invoice_delivery_requests, invoice_adjustments | API preview/thu/hoàn/chốt/xuất HTML; Admin lập điều chỉnh riêng có lý do, khóa hóa đơn gốc và chứng từ đã lập (migration 08); cấu hình thuế/phí qua migration 06; legacy folio_preview/checkout_close không thay thế API |
 | UC20 | reservations, refunds | Bảng lưu; chưa có routine no-show |
 | UC21–23 | rooms, room_maintenance | maintenance_block; room cleaning transition cần API |
 | UC24–26 | pricing_rules, promotions, services | Rule tables và constraints |

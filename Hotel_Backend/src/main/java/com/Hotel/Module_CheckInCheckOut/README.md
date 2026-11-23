@@ -8,12 +8,8 @@ Frontend React/Vite from main currently uses mock data. This module supplies the
 
 Nguồn yêu cầu ưu tiên là `../../Sứ Thanh Hóa - 172889 - Báo cáo BTL Phân tích thiết kế hệ thống.docx` (đường dẫn tính từ `Hotel_Backend`). Đối chiếu UC16–19, OC-16.01/02, OC-17.01, OC-19.01/02/03 và OC-11.01/02, cùng biểu đồ lớp/trình tự UC16/17/19. Xem `docs/stay_contracts.md` để biết cách ánh xạ và các quyết định triển khai còn cần cấu hình.
 
-- Historical baseline before merging main: booking classes were placeholders. After synchronization, the JPA booking/account modules and report module from main are retained.
-- ReservationRepository now uses the mapped booking entity from main. The check-in/check-out models remain JDBC domain records in their own package.
-- The shared application keeps scheduling from main and the Clock bean used by stay services. PostgreSQL and all dependencies from main are retained, using Java 17. JPA defaults to update for the legacy entities; stay tables require the SQL migrations below.
-- Tái sử dụng 26 bảng và các enum nền; migration 06 bổ sung hồ sơ người ở, snapshot giá assignment, điều chuyển tồn phòng và yêu cầu gửi hóa đơn. Dùng JDBC qua repository vì model đặt phòng hiện chưa ánh xạ; không tạo các entity JPA trùng lặp.
-- Redis chưa cần cho UC16/UC19 nên tắt autoconfiguration Redisson; dependency của module đặt phòng vẫn giữ nguyên. Khi module đó sẵn sàng, cấu hình lại Redis/autoconfiguration trong tích hợp chung.
-- Phạm vi triển khai là UC16/17/19 và nhánh hoàn chênh lệch tại quầy liên quan UC11. Không triển khai toàn bộ UC02/07/08/11/15/18/21/27, no-show, cổng thanh toán thật hoặc hóa đơn điều chỉnh. Module xác thực chung vẫn phải cung cấp principal đã kiểm chứng; không có cơ chế bypass.
+- Check-in, đổi phòng, Check-out và Invoice dùng JDBC trên `hotel.reservations` và các bảng nghiệp vụ liên quan. Booking dùng JPA trên `hotel.reservation` và Redis để lưu TTL giữ phòng.
+- Phạm vi gồm UC16/17/19, hóa đơn điều chỉnh của Admin và hoàn chênh lệch tại quầy liên quan UC11. Payment UC08 có tài liệu module riêng.
 
 ## Kiến trúc
 
@@ -37,21 +33,14 @@ Các operation ghi dùng Spring transaction; lỗi validation hoặc lỗi DB ro
 ## Chuẩn bị và chạy
 
 Yêu cầu JDK 17; Maven Wrapper đã kèm theo. Chạy PostgreSQL theo `Hotel_Database/docker-compose.yml`, hoặc dùng PostgreSQL riêng.
-Trên database mới, áp dụng lần lượt bằng `psql -v ON_ERROR_STOP=1`:
-
-```text
-Hotel_Database/sql/01_schema.sql
-Hotel_Database/sql/02_operations.sql
-Hotel_Database/sql/03_seed.sql
-Hotel_Database/sql/05_checkin_checkout.sql
-Hotel_Database/sql/06_stay_contracts.sql
-```
-
-Trên database đã cài schema v1, chạy lần lượt `05_checkin_checkout.sql` và `06_stay_contracts.sql`. Cả hai migration repeatable. Không chạy lại `01_schema.sql` hoặc ghi đè schema trên dữ liệu có sẵn. Migration 06 giữ FK phòng vật lý/loại phòng, tách FK detail đã đặt để cho phép nâng hạng/đổi loại; cập nhật `available_count` để tính cả điều chuyển tồn phòng mà không sửa giá booking.
+Xem [hướng dẫn Flyway](../../../../../../docs/backend_review_2026-11-23.md#c-database-và-triển-khai) để tạo DB mới hoặc nâng cấp DB cũ. SQL 05–08 tương ứng phần lưu trú, Payment và điều chỉnh hóa đơn đã có trong V8.
 
 Trong PowerShell, từ `Hotel_Backend`:
 
 ```powershell
+$env:SPRING_PROFILES_ACTIVE='development'
+$env:HOTEL_DDL_AUTO='validate'
+$env:HOTEL_JWT_SECRET='<khóa ngẫu nhiên ít nhất 32 byte UTF-8>'
 $env:HOTEL_DB_URL='jdbc:postgresql://localhost:5433/hotel_db'
 $env:HOTEL_DB_USER='hotel_admin'
 $env:HOTEL_DB_PASSWORD='<mật khẩu PostgreSQL của môi trường>'
@@ -59,11 +48,11 @@ $env:HOTEL_DB_PASSWORD='<mật khẩu PostgreSQL của môi trường>'
 .\mvnw.cmd spring-boot:run
 ```
 
-Ứng dụng không tự chạy migration. `hotel_admin` chỉ dùng phát triển; tài khoản backend triển khai cần quyền tối thiểu cho các bảng module sử dụng và không được cung cấp thông tin đăng nhập DB cho trình duyệt.
+Bật Flyway bằng `HOTEL_FLYWAY_ENABLED=true` trên DB trống hoặc DB đã baseline đúng phiên bản. `hotel_admin` chỉ dùng phát triển; tài khoản backend triển khai cần quyền tối thiểu cho các bảng module sử dụng và không được cung cấp thông tin đăng nhập DB cho trình duyệt.
 
 ## Authentication / authorization — điểm tích hợp bắt buộc
 
-Module không tạo hệ thống đăng nhập mới. `ReceptionistContext` cần `HttpServletRequest.getUserPrincipal()` do filter xác thực/session/JWT chung đã kiểm chứng thiết lập, với `principal.name` là email của `hotel.users`.
+Module không tạo hệ thống đăng nhập mới. `ReceptionistContext` cần `HttpServletRequest.getUserPrincipal()` do Spring Security xác thực HTTP Basic thiết lập, với `principal.name` là email của `hotel.users`.
 
 - Chưa có principal: HTTP 401. Một bản chạy độc lập chưa tích hợp auth sẽ từ chối các endpoint này.
 - Tra vai trò/chi nhánh từ DB; tài khoản/chi nhánh phải hoạt động, chưa xóa mềm, tài khoản không bị khóa.
@@ -108,6 +97,34 @@ Phí trả muộn: `branches.late_checkout_fee` là tham số phí cố định 
 
 ## Transaction và concurrency
 
+### Điều chỉnh hóa đơn đã đóng (OC-19.03)
+
+Chạy `Hotel_Database/sql/08_invoice_adjustments.sql` sau migration 06 (hoặc 07 nếu dùng Payment). Migration lặp lại được; không sửa dữ liệu hóa đơn cũ.
+
+Chỉ tài khoản `ADMIN` đang hoạt động, không bị khóa được gọi `POST`/`GET /api/reservations/{id}/checkout/invoice/adjustments`, xác thực HTTP Basic giống backend hiện tại. Admin không cần gắn chi nhánh; MANAGER và RECEPTIONIST không có quyền này. Quyền thao tác lễ tân vẫn giữ riêng.
+
+Ví dụ body tạo hóa đơn điều chỉnh:
+
+```json
+{
+  "reason": "Điều chỉnh khoản phụ phí ghi nhầm",
+  "idempotencyKey": "invoice-adjustment-001",
+  "lines": [
+    {"type": "EXTRA", "description": "Giảm phụ phí", "amount": -50000}
+  ]
+}
+```
+
+`reason` bắt buộc, tối đa 1000 ký tự. Có 1–100 dòng, loại `ROOM/SERVICE/EXTRA/DISCOUNT/TAX`, mô tả tối đa 500 ký tự, tiền khác 0 và tối đa 2 chữ số thập phân. Mọi `amount` đều là chênh lệch có dấu: dương tăng tổng, âm giảm tổng (kể cả dòng DISCOUNT). Admin chỉ rõ khoản cần điều chỉnh; không tự tính lại thuế hoặc giá từ danh mục hiện tại.
+
+Kết quả chứa mã `ADJ-UUID`, ID hóa đơn gốc, lý do, các dòng, người/thời điểm lập, `total` là tổng chênh lệch và `adjustedTotal` là tổng hóa đơn sau lần điều chỉnh đó. `GET` trả lịch sử theo thứ tự lập. Chỉ lập khi booking CHECKED_OUT và hóa đơn CLOSED; tổng lũy kế không âm. Hóa đơn gốc và các điều chỉnh đã lập đều bất biến; nếu cần sửa tiếp phải lập điều chỉnh mới có lý do. Hành động `INVOICE_ADJUSTMENT` được ghi audit trong cùng transaction.
+
+Khóa idempotency dùng toàn bộ nghiệp vụ điều chỉnh: cùng khóa và nội dung trả lại đúng bản đã lập; khác nội dung/đơn trả 409. Khóa theo request trước, reservation sau; hai điều chỉnh cùng hóa đơn được kiểm tra tổng nối tiếp. Trigger DB kiểm tra Admin, trạng thái, dữ liệu dòng và tổng lũy kế, đồng thời chặn sửa/xóa điều chỉnh.
+
+Đây là chứng từ điều chỉnh theo UC19; không tự tạo giao dịch thu/hoàn tiền sau checkout, không sửa `payments/refunds` cũ. Báo cáo UC28 hiện vẫn tính từ hóa đơn gốc và khoản hoàn theo quy ước sẵn có; việc đưa chứng từ điều chỉnh vào kỳ doanh thu cần chốt riêng quy ước báo cáo. Yêu cầu UC19 không quy định quy trình thu/hoàn sau đóng hoặc kỳ hạch toán điều chỉnh.
+
+Kiểm thử độc lập bằng `mvn -o -Dtest=InvoiceAdjustmentIntegrationTest test`: dùng PostgreSQL nhúng từ dependency sẵn có, database tạm được đóng/dọn sau suite; không cần URL DB làm việc.
+
 Check-in khóa reservation (`FOR UPDATE`), khóa advisory `(7101, room_type_id)` theo thứ tự tăng như SQL đặt phòng/bảo trì, rồi khóa phòng theo ID tăng. Sau khi chờ khóa, truy vấn lại điều kiện phòng bằng statement mới. Unique index `uq_room_current_assignment` là lớp bảo vệ bổ sung. Phòng chỉ được gán sau khi toàn bộ lựa chọn hợp lệ.
 
 Check-out/thu bổ sung khóa reservation. Migration bắt buộc khóa cùng reservation khi có ghi service usages, extras, payments, refunds; kiểm tra lại trạng thái sau khi chờ. Vì vậy dịch vụ hoặc tiền không thể được ghi thêm sau lúc chốt mà lọt khỏi hóa đơn. Invoice/assignment/room/status được ghi trong cùng transaction. Các writer tương lai cũng phải giữ thứ tự khóa nhất quán; lỗi deadlock/unique/concurrency trả HTTP 409 để tải lại.
@@ -132,6 +149,8 @@ Các URL dưới đây có tiền tố `/api/reservations/{id}`. ID là bigint c
 | POST | `/checkout` | Chốt hóa đơn và trả phòng; không cần body |
 | GET | `/checkout/invoice` | Hóa đơn CLOSED và các dòng đã chốt |
 | GET | `/checkout/invoice/export` | Tải hóa đơn HTML UTF-8 để mở/in |
+| POST | `/checkout/invoice/adjustments` | Admin lập hóa đơn điều chỉnh có lý do |
+| GET | `/checkout/invoice/adjustments` | Admin xem lịch sử điều chỉnh |
 
 Check-in một phòng (với nhiều phòng, truyền đủ ID):
 
@@ -155,7 +174,7 @@ Lỗi có dạng `{"code":"ROOM_UNAVAILABLE","message":"..."}`; 400 dữ liệu 
 
 ## Kiểm thử
 
-Unit tests chạy bằng `.\mvnw.cmd test`. Integration tests cần PostgreSQL thật và chỉ chạy khi URL chỉ đúng DB test tên `hotel_lifecycle_test`, không có query string. Suite **tạo lại schema hotel và xóa dữ liệu trong DB test này**; không trỏ vào database làm việc.
+Chạy suite bằng `.\mvnw.cmd test`. `StayIntegrationTest` cần PostgreSQL riêng với URL trỏ đúng DB tên `hotel_lifecycle_test`, không có query string. `InvoiceAdjustmentIntegrationTest` dùng PostgreSQL nhúng. Suite **tạo lại schema hotel và xóa dữ liệu trong DB test này**; không trỏ vào database làm việc.
 
 Nếu IDE đang biên dịch vào `target`, có thể dùng `.\mvnw.cmd '-Dhotel.build.directory=.local/maven-target' test` để tách output Maven khỏi IDE.
 
@@ -170,12 +189,12 @@ Database test dùng tài khoản cục bộ không mật khẩu hoặc cấu hì
 
 Bao gồm kiểm tra snapshot giá, số dư/refund, thu trùng và bản ghi pending dùng chung, điều kiện check-in, sai quyền/chi nhánh, request principal, export, rollback sau lỗi DB, hóa đơn nháp/đã đóng, tương thích SQL legacy và hai cuộc đua bằng transaction thật (cùng phòng; ghi dịch vụ trong khi check-out).
 
-## Synchronization with main (2026-11-14)
+## Tích hợp backend hiện tại
 
 - `security/StaySecurityConfig.java` handles `/api/reservations/**` at order 2. It authenticates HTTP Basic credentials using the existing `ReportIdentityService` and `hotel.users` password hashes (BCrypt, with or without the `{bcrypt}` prefix). It requires RECEPTIONIST; services additionally check the active branch. There is no header-based identity bypass.
 - Report routes run at order 1; the account module is the fallback at order 3. The old permit-all report fallback was removed so it cannot mask the account or stay rules. The account password encoder is primary, while staff/report authentication explicitly uses the delegating encoder.
 - Account exception advice is scoped to the account and booking modules so it cannot turn stay errors into HTTP 500 or replace the stay validation contract.
-- Both `HOTEL_DB_*` and the `DB_*` variables from main are supported; `HOTEL_DB_*` takes precedence. Set `HOTEL_DDL_AUTO=none` when schema is managed externally. Booking still requires Redis as configured in main.
+- Xem [README backend](../../../../../../README.md) để cấu hình môi trường và chạy Flyway. Production dùng Hibernate `validate`. Các script SQL bàn giao phục vụ đối chiếu schema và fixture cũ.
 - Booking from main uses `hotel.reservation` with UUID IDs; stays and reports use `hotel.reservations` with bigint IDs. They remain separate existing models: a UUID returned by the booking API cannot be passed to a stay endpoint. Bridging these models requires a separate booking/data migration change.
 - Frontend from main uses mock data and assumes Bearer tokens and `/staff/reservations/...` URLs. It is not yet a live client for this module. Use the documented `/api/reservations/{id}` endpoints with staff HTTP Basic credentials for API validation.
-- Integration suites mock the separate booking/Redis infrastructure, use real PostgreSQL for stays/reports, and exercise the real Spring Security filter chains. They do not verify the legacy booking module end to end.
+- Các test lưu trú và báo cáo dùng PostgreSQL và Spring Security thật. Kiểm thử luồng canonical đã xác nhận lễ tân sai chi nhánh bị từ chối và lễ tân đúng chi nhánh có thể đóng hóa đơn. Điểm bắt đầu của luồng là `hotel.make_reservation`.

@@ -4,11 +4,11 @@ services:
     container_name: hotel-postgres
     environment:
       POSTGRES_USER: hotel_admin
-      POSTGRES_PASSWORD: local_development_only
+      POSTGRES_PASSWORD: ${HOTEL_DB_PASSWORD:?set HOTEL_DB_PASSWORD}
       POSTGRES_DB: hotel_db
       TZ: Asia/Ho_Chi_Minh
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:${HOTEL_DB_HOST_PORT:-5433}:5432"
     volumes:
       - hotel_pgdata:/var/lib/postgresql/data
       - ./sql:/sql:ro

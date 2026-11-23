@@ -14,6 +14,7 @@ Nguồn ưu tiên: báo cáo `Sứ Thanh Hóa - 172889 - Báo cáo BTL Phân tí
 | OC-19.02; OC-11.01/02 | Hoàn chênh lệch với payment gốc, hạn mức, idempotency; CASH PENDING rồi xác nhận DONE, QR/thẻ giả lập DONE |
 | OC-19.03 | Số dư 0 và không còn khoản hoàn chờ; đóng invoice, trả toàn booking, phòng VACANT + DIRTY; hóa đơn/financial data đã đóng bất biến |
 | OC-19.03; trình tự UC19 | Tạo yêu cầu gửi hóa đơn sau khi transaction thành công thông qua bảng delivery requests; có bản xuất HTML để in |
+| OC-19.03; ngoại lệ UC19 | Admin lập hóa đơn điều chỉnh riêng, bắt buộc lý do, lưu dòng tăng/giảm, người lập và audit; hóa đơn gốc bất biến. Được tạo trong Flyway V8, tương ứng SQL 08 |
 | Phạm vi billing; tài liệu DB mục giới hạn | Có tax policy cấu hình, không tự gán VAT thực tế khi tài liệu chưa xác nhận |
 
 Các lựa chọn triển khai cần phân biệt với yêu cầu đã chốt:
@@ -25,8 +26,8 @@ Các lựa chọn triển khai cần phân biệt với yêu cầu đã chốt:
 - Điều chuyển tồn loại phòng được lưu riêng, available_count dùng cùng dữ liệu với make_reservation/maintenance_block; reservation_nights và room_subtotal giữ nguyên snapshot tiền. Chênh lệch giá vào extra_charges.
 - Thuế ngoài giá trên tổng sau giảm, làm tròn 2 số, theo nền tảng folio_preview hiện có. Snapshot tỷ lệ khi check-in; mặc định 0. Thuế suất thực tế, nhiều thuế suất và mô hình giá đã gồm thuế chưa được tài liệu xác nhận.
 - Phí trả muộn chưa có công thức/mức cụ thể trong báo cáo. Tham số late_checkout_fee cho phép cấu hình mức cố định của chi nhánh, mặc định NULL (không tự áp phí). Khi khách sạn chốt chính sách theo giờ/phần trăm cần thay policy tương ứng.
-- DRAFT được tính lại từ các bảng chi phí nguồn. Không nhận điều chỉnh chỉ tồn tại trong invoice_lines. Điều chỉnh sau đóng thuộc Admin, chưa triển khai.
-- Staff authentication after merging main uses HTTP Basic and the existing hotel.users identity service; Spring Security supplies the verified principal. ReceptionistContext still checks active staff and branch membership.
+- DRAFT được tính lại từ các bảng chi phí nguồn. Không nhận điều chỉnh chỉ tồn tại trong invoice_lines. Sau đóng, chỉ Admin lập bản ghi `invoice_adjustments` riêng, không sửa hóa đơn gốc hoặc mở lại booking. Mỗi dòng là số tiền chênh lệch có dấu; tổng sau các lần điều chỉnh không được âm. Định dạng số ADJ-UUID, snapshot JSON của dòng và khóa idempotency là lựa chọn kỹ thuật, không phải quy định kế toán do báo cáo đặt ra.
+- API lưu trú dùng HTTP Basic từ `hotel.users`. `ReceptionistContext` kiểm tra lễ tân đang hoạt động và thuộc chi nhánh của đơn. API điều chỉnh hóa đơn yêu cầu Admin.
 - Delivery request là yêu cầu gửi; chưa có notification worker/SMTP nên không coi là email đã gửi. Thanh toán/hoàn QR/thẻ vẫn mô phỏng, đúng phạm vi báo cáo.
 
-Migration 06 mở rộng schema nền một cách repeatable, không sửa báo cáo DOCX và không tự sửa dữ liệu tài chính đã đóng. Chạy migration trên database đích trước khi dùng API mới.
+Flyway V8 chứa schema lưu trú, Payment và điều chỉnh hóa đơn từ SQL 05–08. Xem [hướng dẫn database và kết quả kiểm thử](backend_review_2026-11-23.md) trước khi chuẩn bị DB.

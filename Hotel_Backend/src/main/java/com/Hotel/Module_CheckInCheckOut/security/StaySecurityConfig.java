@@ -25,7 +25,10 @@ public class StaySecurityConfig {
                 .authenticationManager(new org.springframework.security.authentication.ProviderManager(provider))
                 .csrf(csrf -> csrf.disable()).requestCache(cache -> cache.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("RECEPTIONIST"))
+                .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/reservations/*/checkout/invoice/adjustments",
+                                     "/api/reservations/*/checkout/invoice/adjustments/**").hasRole("ADMIN")
+                    .anyRequest().hasRole("RECEPTIONIST"))
                 .httpBasic(basic -> basic.authenticationEntryPoint((request, response, error) -> {
                     response.setStatus(401);
                     response.setHeader("WWW-Authenticate", "Basic realm=\"Reception\"");
@@ -35,7 +38,7 @@ public class StaySecurityConfig {
                 .exceptionHandling(errors -> errors.accessDeniedHandler((request, response, error) -> {
                     response.setStatus(403);
                     response.setContentType("application/json");
-                    response.getWriter().write("{\"code\":\"FORBIDDEN\",\"message\":\"Receptionist access required\"}");
+                    response.getWriter().write("{\"code\":\"FORBIDDEN\",\"message\":\"Insufficient permissions\"}");
                 })).build();
     }
 }

@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnabledIfEnvironmentVariable(named="HOTEL_TEST_DB_URL",matches="jdbc:postgresql://[^/]+/hotel_lifecycle_test")
 @SpringBootTest(classes=HotelSystem.class,properties={
     "spring.datasource.url=${HOTEL_TEST_DB_URL}","spring.datasource.username=${HOTEL_TEST_DB_USER:hotel_test}",
-    "spring.datasource.password=","spring.datasource.hikari.maximum-pool-size=8","spring.jpa.hibernate.ddl-auto=none","debug=false","logging.level.root=WARN"})
+    "spring.datasource.password=","spring.datasource.hikari.maximum-pool-size=8","hotel.payment.expiry-enabled=false","spring.jpa.hibernate.ddl-auto=none","debug=false","logging.level.root=WARN"})
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StayIntegrationTest {
@@ -53,7 +53,7 @@ class StayIntegrationTest {
     @BeforeAll void schema() throws Exception {
         assertTrue(System.getenv("HOTEL_TEST_DB_URL").endsWith("/hotel_lifecycle_test"));
         jdbc.execute("DROP SCHEMA IF EXISTS hotel CASCADE");
-        for (String file: List.of("01_schema.sql","02_operations.sql","05_checkin_checkout.sql","06_stay_contracts.sql"))
+        for (String file: List.of("01_schema.sql","02_operations.sql","05_checkin_checkout.sql","06_stay_contracts.sql","08_invoice_adjustments.sql"))
             jdbc.execute(Files.readString(Path.of("../Hotel_Database/sql",file)));
     }
     @BeforeEach void fixture() {
