@@ -8,6 +8,7 @@ import com.Hotel.Module_CheckInCheckOut.entity.Reservation;
 import com.Hotel.Module_CheckInCheckOut.entity.ReservationStatus;
 import com.Hotel.Module_CheckInCheckOut.entity.StayException;
 import com.Hotel.Module_CheckInCheckOut.repository.StayRepository;
+import com.Hotel.config.MockPaymentPolicy;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Objects;
@@ -19,7 +20,10 @@ public class RefundService {
     private final StayRepository repo;
     private final BillingService billing;
     private final Clock clock;
-    public RefundService(StayRepository repo, BillingService billing, Clock clock) { this.repo=repo;this.billing=billing;this.clock=clock; }
+    private final MockPaymentPolicy mock;
+    public RefundService(StayRepository repo, BillingService billing, Clock clock, MockPaymentPolicy mock) {
+        this.repo=repo;this.billing=billing;this.clock=clock;this.mock=mock;
+    }
     private void requireStay(Reservation r) {
         if(r.status()!=ReservationStatus.CHECKED_IN) throw StayException.conflict("INVALID_RESERVATION_STATE","Chỉ xử lý hoàn chênh lệch khi đang lưu trú.");
     }
@@ -35,6 +39,8 @@ public class RefundService {
     }
     @Transactional
     public Refund request(long id, long paymentId, BigDecimal amount, String method, String key, String reason, Receptionist actor) {
+        // A simulated refund completes immediately (createRefund marks non-cash refunds DONE); refuse it first.
+        if(!mock.allows(method)) throw StayException.conflict(MockPaymentPolicy.DISABLED_CODE,MockPaymentPolicy.DISABLED_MESSAGE);
         var r=repo.reservation(id,true); actor.authorize(r.branchId());
         if(amount==null || amount.signum()<=0 || amount.scale()>2 || amount.precision()>14 || paymentId<=0
             || key==null || !key.matches("[A-Za-z0-9:_-]{8,100}") || reason==null || reason.strip().isEmpty() || reason.length()>500

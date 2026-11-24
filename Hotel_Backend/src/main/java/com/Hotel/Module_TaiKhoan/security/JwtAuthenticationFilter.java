@@ -1,8 +1,6 @@
 package com.Hotel.Module_TaiKhoan.security;
 
 import java.io.IOException;
-import java.util.UUID;
-
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,25 +31,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
-            UUID accountId = readAccountId(header.substring(7));
-            if (accountId != null) {
-                accounts.findById(accountId)
+            JwtTokenProvider.Session session = readSession(header.substring(7));
+            if (session != null) {
+                accounts.findById(session.accountId())
                         .filter(account -> "DA_KICH_HOAT".equals(account.getTrangThai()))
-                        .ifPresent(account -> authenticate(account.getEmail(), account.getVaiTro()));
+                        .filter(account -> session.matches(account.getTokenVersion()))
+                        .ifPresent(account -> authenticate(account.getEmail(), account.getVaiTro(), session));
             }
         }
         chain.doFilter(request, response);
     }
 
-    private UUID readAccountId(String token) {
+    private JwtTokenProvider.Session readSession(String token) {
         try {
-            return tokenProvider.readAccountId(token);
+            return tokenProvider.readSession(token);
         } catch (JwtException | IllegalArgumentException ex) {
             return null;
         }
     }
 
-    private void authenticate(String email, String role) {
+    /**
+     * The verified session (account UUID and token version) is kept as the authentication details, so a
+     * write can re-check the caller under its own locks instead of trusting the request-time snapshot.
+     */
+    private void authenticate(String email, String role, JwtTokenProvider.Session session) {
         if (role == null || role.isBlank()) {
             return;
         }
@@ -59,7 +62,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         var user = User.withUsername(email).password("")
                 .authorities(new SimpleGrantedAuthority(authority)).build();
         var context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+        var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        authentication.setDetails(session);
+        context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
     }
 }

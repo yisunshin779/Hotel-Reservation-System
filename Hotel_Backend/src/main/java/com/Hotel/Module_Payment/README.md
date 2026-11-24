@@ -14,8 +14,8 @@ Nguồn yêu cầu là báo cáo `Sứ Thanh Hóa - 172889 - Báo cáo BTL Phân
 | OC-08.03 | Chỉ lễ tân đúng chi nhánh được xác nhận thực thu CASH; cập nhật Payment UNPAID đang tồn tại, lưu recorded_by/paid_at; không cho khách tự gạch nợ |
 | OC-15.04; OC-19.02 | Dùng chung `payments.obligation_key` và writer `StayRepository.recordPayment`; nếu thu lúc CHECKED_IN, gọi CheckOutService.payment để kiểm tra số dư folio; không tạo bản ghi thứ hai cho cùng nghĩa vụ |
 | UC08 Sequence, nhánh already PAID | Retry trả kết quả cũ, kể cả sau checkout, không viết lại bản ghi tài chính đã đóng |
-| UC07/08: quá 15 phút | Gọi routine `hotel.expire_holds()` đã có qua scheduled job; routine hủy đơn, giải phóng tồn và hoàn lượt khuyến mãi. API kiểm tra đồng hồ DB sau khi lấy khóa, không phụ thuộc lần quét gần nhất |
-| UC08 Sequence: Notification sau COMMIT | Ghi một yêu cầu xác nhận đặt phòng trong transactional outbox; chỉ nhìn thấy sau commit. Chưa có worker email/SMS nên PENDING không có nghĩa đã gửi |
+| UC07/08: quá 15 phút | Gọi routine `hotel.expire_holds()` đã có qua scheduled job; routine hủy đơn, giải phóng tồn, hoàn lượt khuyến mãi và (từ V12) hủy lựa chọn QR `ACTIVE`, chuyển payment `PENDING` sang `FAILED` dưới cùng khóa đơn. API kiểm tra đồng hồ DB sau khi lấy khóa, không phụ thuộc lần quét gần nhất |
+| UC08 Sequence: Notification sau COMMIT | Ghi một yêu cầu xác nhận đặt phòng trong transactional outbox; chỉ nhìn thấy sau commit. `NotificationDispatcher` gửi sau commit, retry, rồi lưu `SENT` hoặc `FAILED`; `PENDING` không có nghĩa đã gửi. Gửi ít nhất một lần |
 | Phạm vi mô phỏng | Chỉ CASH/QR trong UC08; không lưu thẻ, tài khoản ngân hàng; QR là hình hiển thị mô phỏng, không phải mã chuyển khoản thật |
 
 `payment_intents` là chi tiết triển khai để nhận diện lựa chọn còn hiệu lực, chống xác nhận QR cũ và giữ snapshot số tiền/plan. Payment và Reservation vẫn có vòng đời riêng như biểu đồ. Khóa nghĩa vụ do server sinh, dùng lại khi retry; API không lấy số tiền hoặc ID khách từ request. Cọc 30% và phần còn lại được đối soát bằng các bản ghi PAID/refund DONE hiện có, không sửa giá phòng snapshot.
@@ -36,7 +36,9 @@ Các URL dưới đây có tiền tố `/api/reservations/{id}/payments`. `{id}`
 
 Ví dụ: chọn FULL/CASH xác nhận đơn nhưng response vẫn có `intent.paymentStatus=UNPAID`, `paidAmount=0`. Chỉ collect-cash hoặc writer thu tại checkout với cùng `obligationKey` mới chuyển khoản đó sang PAID. `remainingAmount` của API này là phần tiền phòng còn lại, không thay folio tính dịch vụ/thuế/phụ phí của checkout.
 
-HTTP 400: request sai; 401: chưa xác thực; 403: sai chủ đơn/quyền/chi nhánh; 404: không có đơn/lựa chọn; 409: quá hạn, sai trạng thái, QR cũ, giá đổi hoặc xung đột ghi. Lỗi trả `{code,message}`. Số tiền gửi thêm trong JSON không được sử dụng để tính khoản thu.
+QR là thanh toán mô phỏng. Khi `hotel.payment.mock-methods-enabled=false` (mặc định của profile `production`, biến `HOTEL_PAYMENT_MOCK_ENABLED`), chọn QR, `confirm-qr` và `cancel` trả 409 `MOCK_PAYMENT_DISABLED` trước khi khóa đơn và trước khi ghi payment, intent, trạng thái đơn, audit hoặc outbox. GET vẫn trả lựa chọn QR lịch sử; chọn CASH và `collect-cash` không đổi.
+
+HTTP 400: request sai; 401: chưa xác thực; 403: sai chủ đơn/quyền/chi nhánh; 404: không có đơn/lựa chọn; 409: quá hạn, sai trạng thái, QR cũ, giá đổi, thanh toán giả lập bị tắt hoặc xung đột ghi. Lỗi trả `{code,message}`. Số tiền gửi thêm trong JSON không được sử dụng để tính khoản thu.
 
 ## Cài đặt
 
@@ -48,7 +50,7 @@ API dùng HTTP Basic với `hotel.users` như cơ chế staff/report đang có; 
 
 Phạm vi triển khai chỉ gồm backend, migration và kiểm thử API. Frontend giữ nguyên trạng thái trước khi làm module payment; không bổ sung giao diện, API client hoặc test frontend. Giao diện hiện có vẫn dùng dữ liệu mock và chưa kết nối với các endpoint payment này.
 
-Payment nhận bigint từ `hotel.reservations`. Booking API tiếp tục ghi UUID vào `hotel.reservation`, nên luồng từ Booking API sang Payment còn chờ ánh xạ đơn và chủ đơn. Đã kiểm thử từ `hotel.make_reservation` qua Payment, check-in, check-out đến hóa đơn đóng. Outbox xác nhận đặt phòng đang chờ worker gửi.
+Payment nhận bigint từ `hotel.reservations`. Khi bật canonical, Booking ghi vào `hotel.reservations` và Payment nhận mã UUID của đơn; luồng cũ vẫn ghi `hotel.reservation`. Đã kiểm thử từ `hotel.make_reservation` qua Payment, check-in, check-out đến hóa đơn đóng. Outbox xác nhận đặt phòng được worker gửi; xem mục G của `docs/backend_review_2026-11-23.md`.
 
 ## Kiểm thử
 

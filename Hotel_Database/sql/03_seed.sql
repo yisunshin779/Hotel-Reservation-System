@@ -1,5 +1,6 @@
 SET search_path=hotel,public;
-INSERT INTO roles(code,name) VALUES ('GUEST','Khách hàng'),('RECEPTIONIST','Lễ tân'),('HOUSEKEEPING','Buồng phòng'),('MANAGER','Quản lý chi nhánh'),('ADMIN','Quản trị chuỗi');
+INSERT INTO roles(code,name) VALUES ('GUEST','Khách hàng'),('RECEPTIONIST','Lễ tân'),('HOUSEKEEPING','Buồng phòng'),('MANAGER','Quản lý chi nhánh'),('ADMIN','Quản trị chuỗi')
+ON CONFLICT (code) DO NOTHING;
 INSERT INTO branches(name,address,city) VALUES ('Hà Nội Central','1 Tràng Tiền, Hà Nội','Hà Nội'),('Đà Nẵng Riverside','10 Bạch Đằng, Đà Nẵng','Đà Nẵng'),('Sài Gòn Grand','20 Đồng Khởi, TP.HCM','TP.HCM');
 INSERT INTO room_types(branch_id,name,capacity,base_price,description) SELECT id,'Standard',2,900000,'Phòng tiêu chuẩn' FROM branches;
 INSERT INTO room_types(branch_id,name,capacity,base_price,description) SELECT id,'Deluxe',3,1500000,'Phòng cao cấp' FROM branches;

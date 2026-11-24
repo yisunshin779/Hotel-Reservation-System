@@ -9,7 +9,9 @@ public record SearchRequestDTO(
     LocalDate ngayNhan,
     LocalDate ngayTra,
     int soNguoiLon,
-    int soTreEm
+    int soTreEm,
+    // Số phòng cần đặt. Để trống: số phòng tối thiểu đủ sức chứa (giữ hành vi cũ của search canonical).
+    Integer soLuongPhong
     // Có thể bổ sung thêm các trường tùy chọn sau này:
     // String maLoaiPhong, 
     // Double giaToiThieu,
@@ -31,6 +33,9 @@ public record SearchRequestDTO(
         }
         if (soNguoiLon < 1) {
             throw new IllegalArgumentException("Phải có ít nhất 1 người lớn để đặt phòng.");
+        }
+        if (soLuongPhong != null && soLuongPhong < 1) {
+            throw new IllegalArgumentException("Số phòng phải từ 1 trở lên.");
         }
     }
 }

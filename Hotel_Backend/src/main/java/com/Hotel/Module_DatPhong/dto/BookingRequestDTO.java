@@ -11,8 +11,13 @@ public record BookingRequestDTO(
     int soLuongPhong,
     LocalDate ngayNhan,
     LocalDate ngayTra,
-    String thongTinKhachHang // Có thể là email hoặc mã khách hàng
+    String thongTinKhachHang,
+    Integer soKhach
 ) {
+    public BookingRequestDTO(String maLoaiPhong, int soLuongPhong, LocalDate ngayNhan,
+                             LocalDate ngayTra, String thongTinKhachHang) {
+        this(maLoaiPhong, soLuongPhong, ngayNhan, ngayTra, thongTinKhachHang, null);
+    }
     // Không cần viết Getters/Setters, Java tự động xử lý.
     // Khi gọi dữ liệu, thay vì dùng request.getMaLoaiPhong(), ta dùng request.maLoaiPhong()
 }

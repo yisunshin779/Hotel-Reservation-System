@@ -42,15 +42,17 @@ class InvoiceAdjustmentIntegrationTest {
         try { return EmbeddedPostgres.builder().setPort(0).start(); }
         catch (Exception e) { throw new ExceptionInInitializerError(e); }
     }
-    @DynamicPropertySource static void properties(DynamicPropertyRegistry r) {
+    @DynamicPropertySource static void properties(DynamicPropertyRegistry r) throws Exception {
         r.add("spring.datasource.url", () -> PG.getJdbcUrl("postgres", "postgres"));
         r.add("spring.datasource.username", () -> "postgres");
         r.add("spring.datasource.password", () -> "");
-    }
-    @BeforeAll void schema() throws Exception {
+        // Built before the context starts: an operational start-up requires the Payment and Checkout tables
+        // and V12 (SchemaCompatibilityCheck).
+        var jdbc = new JdbcTemplate(PG.getPostgresDatabase());
         for (String file : List.of("01_schema.sql", "02_operations.sql", "05_checkin_checkout.sql",
-                "06_stay_contracts.sql", "08_invoice_adjustments.sql", "08_invoice_adjustments.sql"))
+                "06_stay_contracts.sql", "07_payment.sql", "08_invoice_adjustments.sql", "08_invoice_adjustments.sql"))
             jdbc.execute(Files.readString(Path.of("../Hotel_Database/sql", file)));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/V12__payment_expiry_and_outbox.sql")));
     }
     @AfterAll static void close() throws Exception { PG.close(); }
     @BeforeEach void fixture() {

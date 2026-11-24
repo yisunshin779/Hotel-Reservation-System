@@ -1,6 +1,7 @@
 package com.Hotel.Module_TaiKhoan.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class ResetPasswordRequestDTO {
@@ -9,7 +10,9 @@ public class ResetPasswordRequestDTO {
     private String token;
 
     @NotBlank(message = "Mật khẩu mới không được để trống")
-    @Size(min = 6, message = "Mật khẩu mới phải có ít nhất 6 ký tự")
+    // OC-03.02: mật khẩu mới theo cùng quy tắc với đăng ký (OC-01.01).
+    @Size(min = 8, message = "Mật khẩu mới phải có ít nhất 8 ký tự")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "Mật khẩu mới phải bao gồm cả chữ và số")
     private String matKhauMoi;
 
     @NotBlank(message = "Vui lòng nhập lại mật khẩu mới")

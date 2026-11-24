@@ -34,16 +34,47 @@ public class JwtTokenProvider {
         this.expirationMs = expirationMs;
     }
 
+    /** Claim checked against hotel.account.token_version to revoke tokens issued before a change. */
+    public static final String VERSION_CLAIM = "ver";
+
+    /** Session read from a verified token. {@code version} is null for tokens issued before V13. */
+    public record Session(UUID accountId, Integer version) {
+        /** Tokens without a version stay valid only while no revocation event has happened. */
+        public boolean matches(int currentVersion) {
+            return version == null ? currentVersion == 0 : version == currentVersion;
+        }
+    }
+
+    public String generateToken(UUID accountId, String email, String role, int tokenVersion) {
+        return build(accountId, email, role, tokenVersion);
+    }
+
+    /** Pre-V13 token shape without the version claim. Kept for compatibility tests. */
     public String generateToken(UUID accountId, String email, String role) {
+        return build(accountId, email, role, null);
+    }
+
+    private String build(UUID accountId, String email, String role, Integer tokenVersion) {
         Date now = new Date();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setSubject(email)
                 .claim("account_id", accountId.toString())
                 .claim("role", role)
                 .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + expirationMs))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+                .setExpiration(new Date(now.getTime() + expirationMs));
+        if (tokenVersion != null) {
+            builder.claim(VERSION_CLAIM, tokenVersion);
+        }
+        return builder.signWith(key, SignatureAlgorithm.HS256).compact();
+    }
+
+    public Session readSession(String token) {
+        var claims = parser.parseClaimsJws(token).getBody();
+        Object version = claims.get(VERSION_CLAIM);
+        if (version != null && !(version instanceof Integer)) {
+            throw new JwtException("Invalid token version");
+        }
+        return new Session(readAccountId(token), (Integer) version);
     }
 
     public UUID readAccountId(String token) {

@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -18,6 +19,7 @@ import com.Hotel.Module_DatPhong.entity.Reservation;
 import com.Hotel.Module_DatPhong.entity.RoomType;
 import com.Hotel.Module_DatPhong.repository.ReservationRepository;
 import com.Hotel.Module_DatPhong.repository.RoomTypeRepository;
+import com.Hotel.config.MockPaymentPolicy;
 
 @Service
 public class BookingService {
@@ -25,13 +27,16 @@ public class BookingService {
     private final RedissonClient redissonClient;
     private final ReservationRepository reservationRepository;
     private final RoomTypeRepository roomTypeRepository;
+    private final MockPaymentPolicy mockPayments;
 
-    public BookingService(RedissonClient redissonClient, 
+    public BookingService(@Lazy RedissonClient redissonClient,
                           ReservationRepository reservationRepository,
-                          RoomTypeRepository roomTypeRepository) {
+                          RoomTypeRepository roomTypeRepository,
+                          MockPaymentPolicy mockPayments) {
         this.redissonClient = redissonClient;
         this.reservationRepository = reservationRepository;
         this.roomTypeRepository = roomTypeRepository;
+        this.mockPayments = mockPayments;
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -87,6 +92,10 @@ public class BookingService {
      * Mô phỏng hệ thống thanh toán trả về kết quả thành công.
      */
     public String confirmPayment(UUID reservationId) {
+        // Legacy simulated payment (no HTTP mapping). Follows the same switch as the Payment module.
+        if (!mockPayments.enabled()) {
+            throw new IllegalStateException(MockPaymentPolicy.DISABLED_CODE + ": " + MockPaymentPolicy.DISABLED_MESSAGE);
+        }
         // 1. Tìm đơn đặt phòng trong Database
         Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã đơn đặt phòng này."));
 

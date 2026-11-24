@@ -30,6 +30,10 @@ spring:
           auth: true
           starttls:
             enable: true
+          # Finite SMTP timeouts (milliseconds). The outbox lease must be longer than their sum.
+          connectiontimeout: ${HOTEL_SMTP_CONNECT_TIMEOUT_MS:10000}
+          timeout: ${HOTEL_SMTP_READ_TIMEOUT_MS:10000}
+          writetimeout: ${HOTEL_SMTP_WRITE_TIMEOUT_MS:10000}
 server:
   error:
     include-message: never
@@ -41,3 +45,27 @@ app:
   jwt-secret: ${HOTEL_JWT_SECRET:}
   public-base-url: ${HOTEL_PUBLIC_BASE_URL}
   frontend-base-url: ${HOTEL_FRONTEND_BASE_URL}
+
+hotel:
+  schema:
+    # operational: start-up requires every Payment and Checkout table (and V12). report-only is set by the
+    # report-demo profile for a reports-only database; see SchemaCompatibilityCheck.
+    mode: ${HOTEL_SCHEMA_MODE:operational}
+  booking:
+    canonical-enabled: ${HOTEL_CANONICAL_BOOKING_ENABLED:false}
+    # Longest stay accepted by canonical search and hold. 90 is a technical default (no business limit is specified).
+    max-nights: ${HOTEL_BOOKING_MAX_NIGHTS:90}
+  payment:
+    # Simulated MOCK_QR/MOCK_CARD writes. The production profile overrides the default to false.
+    mock-methods-enabled: ${HOTEL_PAYMENT_MOCK_ENABLED:true}
+  security:
+    # Transition switch for HTTP Basic on Payment, Stay and Report. false needs canonical booking.
+    basic-auth-enabled: ${HOTEL_BASIC_AUTH_ENABLED:true}
+  notifications:
+    # Outbox worker for account e-mails, booking confirmations and invoice delivery (at-least-once).
+    dispatch-enabled: ${HOTEL_NOTIFICATIONS_ENABLED:true}
+    delay-ms: ${HOTEL_NOTIFICATIONS_DELAY_MS:30000}
+    max-attempts: ${HOTEL_NOTIFICATIONS_MAX_ATTEMPTS:5}
+    max-age-hours: ${HOTEL_NOTIFICATIONS_MAX_AGE_HOURS:48}
+    # Each message is claimed just before it is sent; the lease must exceed the SMTP timeouts above.
+    lease-seconds: ${HOTEL_NOTIFICATIONS_LEASE_SECONDS:300}

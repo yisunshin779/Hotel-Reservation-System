@@ -6,3 +6,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+hotel:
+  payment:
+    # MOCK_QR and MOCK_CARD writes are refused (409 MOCK_PAYMENT_DISABLED); cash and reads stay available.
+    mock-methods-enabled: ${HOTEL_PAYMENT_MOCK_ENABLED:false}

@@ -51,7 +51,7 @@ public interface StayRepository {
     BigDecimal allocatedRefunds(long reservationId, Long paymentId, Long excludingId);
     Refund createRefund(long reservationId, long paymentId, BigDecimal amount, String key, String reason, boolean done, long actorId, Instant now);
     void completeRefund(long refundId, long actorId, Instant now);
-    void requestInvoiceDelivery(long invoiceId, Instant now);
+    void requestInvoiceDelivery(long invoiceId);
     void assign(long detailId, Room room, Instant now);
     void markCheckedIn(long reservationId, Instant now);
     void audit(long actorId, long reservationId, String action, String data);

@@ -56,6 +56,10 @@ public class Account {
     @Column(name = "thoi_gian_khoa")
     private LocalDateTime thoiGianKhoa;
 
+    // V13: incremented on password reset, role change, lock and unlock to revoke older JWTs.
+    @Column(name = "token_version", nullable = false, columnDefinition = "integer default 0 not null")
+    private int tokenVersion = 0;
+
     @Column(name = "thoi_gian_tao", nullable = false, updatable = false)
     private LocalDateTime thoiGianTao;
 
@@ -103,4 +107,7 @@ public class Account {
     public void setThoiGianKhoa(LocalDateTime thoiGianKhoa) { this.thoiGianKhoa = thoiGianKhoa; }
 
     public LocalDateTime getThoiGianTao() { return thoiGianTao; }
+
+    public int getTokenVersion() { return tokenVersion; }
+    public void revokeTokens() { this.tokenVersion++; }
 }

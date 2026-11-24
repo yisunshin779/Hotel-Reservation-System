@@ -41,6 +41,24 @@ public class GlobalExceptionHandler {
      * 2. Bắt lỗi logic nghiệp vụ (IllegalArgumentException & IllegalStateException)
      * Xảy ra khi AuthService chủ động ném lỗi (vd: Mật khẩu không khớp, Email đã tồn tại)
      */
+    @ExceptionHandler(AccountConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(AccountConflictException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("code", ex.code());
+        response.put("message", ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(AccountAccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccountAccessDeniedException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "error");
+        response.put("code", ex.code());
+        response.put("message", ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<Map<String, Object>> handleBusinessLogicExceptions(RuntimeException ex) {
         Map<String, Object> response = new HashMap<>();

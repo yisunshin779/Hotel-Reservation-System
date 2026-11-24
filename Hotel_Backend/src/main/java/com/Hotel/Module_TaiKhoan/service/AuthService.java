@@ -1,8 +1,11 @@
 package com.Hotel.Module_TaiKhoan.service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,21 +31,42 @@ import com.google.api.client.json.gson.GsonFactory;
 public class AuthService {
 
     private final AccountRepository accountRepository;
+    private final HotelCustomerProvisioning customers;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final VerificationTokenRepository verificationTokenRepository; 
-    private final EmailService emailService;                               
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final AccountEmailOutbox outbox;
+    private final Clock clock;
+
+    /** OC-03.01: a reset token is valid for 30 minutes and can be used once. */
+    public static final Duration RESET_TOKEN_TTL = Duration.ofMinutes(30);
+    public static final Duration VERIFY_TOKEN_TTL = Duration.ofHours(24);
+    static final String RESET_PASSWORD = "RESET_PASSWORD";
 
     public AuthService(AccountRepository accountRepository,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwtTokenProvider,
                        VerificationTokenRepository verificationTokenRepository,
-                       EmailService emailService) {
+                       AccountEmailOutbox outbox,
+                       HotelCustomerProvisioning customers,
+                       Clock clock) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.verificationTokenRepository = verificationTokenRepository;
-        this.emailService = emailService;
+        this.outbox = outbox;
+        this.customers = customers;
+        this.clock = clock;
+    }
+
+    // verification_token stores server-local timestamps; keep that convention with a testable clock.
+    private LocalDateTime now() {
+        return LocalDateTime.now(clock.withZone(ZoneId.systemDefault()));
+    }
+
+    private String issue(Account account) {
+        return jwtTokenProvider.generateToken(account.getId(), account.getEmail(), account.getVaiTro(),
+                account.getTokenVersion());
     }
 
     @Transactional
@@ -76,19 +100,20 @@ public class AuthService {
 
         // 7. Sinh mã xác thực ngẫu nhiên (dùng cấu trúc UUID)
         String token = java.util.UUID.randomUUID().toString();
-    
+
         VerificationToken verificationToken = new VerificationToken();
         verificationToken.setToken(token);
         verificationToken.setAccount(newAccount);
         verificationToken.setLoaiToken("VERIFY_EMAIL");
-        verificationToken.setNgayHetHan(java.time.LocalDateTime.now().plusHours(24)); // Có hiệu lực trong 24 giờ
-    
-        verificationTokenRepository.save(verificationToken);
+        verificationToken.setNgayHetHan(now().plus(VERIFY_TOKEN_TTL)); // Có hiệu lực trong 24 giờ
 
-        // 8. Ra lệnh cho bưu tá gửi email
-        emailService.sendVerificationEmail(newAccount.getEmail(), token);
+        // Flush so the JDBC outbox row can reference the new account and token.
+        verificationTokenRepository.saveAndFlush(verificationToken);
+
+        // 8. Xếp email vào outbox trong cùng giao dịch; worker gửi sau khi commit.
+        outbox.enqueue(newAccount.getId(), AccountEmailOutbox.Purpose.VERIFY_EMAIL, verificationToken.getId());
     }
-    
+
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCK_DURATION_MINUTES = 15;
     @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
@@ -106,13 +131,13 @@ public class AuthService {
         }
 
         // 3. Kiểm tra trạng thái khóa tạm thời do Brute-force
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = now();
         if (account.getThoiGianKhoa() != null) {
             if (account.getThoiGianKhoa().isAfter(now)) {
                 long remainingSeconds = Duration.between(now, account.getThoiGianKhoa()).getSeconds();
                 long remainingMinutes = Math.max(1, (remainingSeconds + 59) / 60); // Làm tròn lên theo phút
                 throw new IllegalStateException(
-                    "Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau " 
+                    "Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau "
                     + remainingMinutes + " phút."
                 );
             } else {
@@ -127,7 +152,7 @@ public class AuthService {
             throw new IllegalStateException(
                 "Tài khoản này được đăng ký qua Google. Vui lòng sử dụng nút 'Đăng nhập với Google'."
             );
-        }        
+        }
         // 4. Đối chiếu mật khẩu
         if (!passwordEncoder.matches(request.getMatKhau(), account.getMatKhau())) {
             int failedAttempts = account.getSoLanDangNhapSai() + 1;
@@ -137,7 +162,7 @@ public class AuthService {
                 account.setThoiGianKhoa(now.plusMinutes(LOCK_DURATION_MINUTES));
                 accountRepository.save(account);
                 throw new IllegalStateException(
-                    "Bạn đã đăng nhập sai quá " + MAX_FAILED_ATTEMPTS 
+                    "Bạn đã đăng nhập sai quá " + MAX_FAILED_ATTEMPTS
                     + " lần. Tài khoản bị khóa tạm thời trong " + LOCK_DURATION_MINUTES + " phút."
                 );
             }
@@ -154,92 +179,125 @@ public class AuthService {
         }
 
         // 6. Sinh JWT và trả về
-        String token = jwtTokenProvider.generateToken(account.getId(), account.getEmail(), account.getVaiTro());
-        return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
+        return new AuthResponseDTO(issue(account), account.getEmail(), account.getVaiTro());
     }
-    
+
     @Transactional
-    public void verifyEmailToken(String token) {
-        // 1. Tìm token trong cơ sở dữ liệu
-        VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Mã xác thực không tồn tại hoặc không hợp lệ."));
+    public HotelCustomerProvisioning.Result verifyEmailToken(String token) {
+        // Lock order account -> token, the same as password reset and token issue.
+        String unknown = "Mã xác thực không tồn tại hoặc không hợp lệ.";
+        Account account = lockTokenOwner(token, unknown);
+        VerificationToken verificationToken = lockedToken(token, account, unknown);
 
         if (!"VERIFY_EMAIL".equals(verificationToken.getLoaiToken())) {
             throw new IllegalArgumentException("Loại token không hợp lệ cho thao tác xác thực email.");
         }
 
-        // 2. Kiểm tra thời hạn của token
-        if (verificationToken.getNgayHetHan().isBefore(java.time.LocalDateTime.now())) {
+        // Kiểm tra thời hạn của token (cùng quy tắc với NotificationDispatcher khi gửi link)
+        if (isExpired(verificationToken.getNgayHetHan())) {
             throw new IllegalStateException("Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại.");
         }
 
-        // 3. Kích hoạt tài khoản
-        Account account = accountRepository.lockById(verificationToken.getAccount().getId()).orElseThrow();
+        // Kích hoạt tài khoản
         if (!"CHO_XAC_THUC".equals(account.getTrangThai())) {
             throw new IllegalStateException("Tài khoản không ở trạng thái chờ xác thực.");
         }
         account.setTrangThai("DA_KICH_HOAT");
         accountRepository.save(account);
+        HotelCustomerProvisioning.Result profile = customers.provision(account);
 
-        // 4. Xóa token sau khi đã sử dụng
+        // Xóa token sau khi đã sử dụng
         verificationTokenRepository.delete(verificationToken);
+        return profile;
     }
 
+    /** A token is valid up to and including its deadline; the API and the e-mail worker share this rule. */
+    public static boolean isExpired(LocalDateTime deadline, LocalDateTime now) {
+        return deadline == null || deadline.isBefore(now);
+    }
+
+    private boolean isExpired(LocalDateTime deadline) {
+        return isExpired(deadline, now());
+    }
+
+    /** Finds the owner without a lock, then locks the account row before any token row. */
+    private Account lockTokenOwner(String token, String unknownMessage) {
+        UUID accountId = token == null ? null : verificationTokenRepository.findAccountIdByToken(token).orElse(null);
+        if (accountId == null) {
+            throw new IllegalArgumentException(unknownMessage);
+        }
+        return accountRepository.lockById(accountId).orElseThrow(() -> new IllegalArgumentException(unknownMessage));
+    }
+
+    /** Re-reads and locks the token under the account lock: a concurrent use may have deleted it. */
+    private VerificationToken lockedToken(String token, Account owner, String unknownMessage) {
+        return verificationTokenRepository.findByToken(token)
+                .filter(found -> owner.getId().equals(found.getAccount().getId()))
+                .orElseThrow(() -> new IllegalArgumentException(unknownMessage));
+    }
+
+    /**
+     * OC-03.01. The caller always receives the same public response; a token is created and an
+     * e-mail queued only for an active account with a local password. Nothing reveals which case applied.
+     */
     @Transactional
     public void forgotPassword(String email) {
-        Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản với email này."));
-
-        if ("BI_KHOA".equals(account.getTrangThai())) {
-            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
-        }
-        if ("GOOGLE".equalsIgnoreCase(account.getAuthProvider()) && account.getMatKhau() == null) {
-            throw new IllegalStateException("Tài khoản này đăng nhập bằng Google, không hỗ trợ đặt lại mật khẩu nội bộ.");
+        // Locks the account row: issuing a reset token is serialized with its use (resetPassword).
+        Account account = accountRepository.lockByEmail(email).orElse(null);
+        if (account == null || !"DA_KICH_HOAT".equals(account.getTrangThai())
+                || account.getMatKhau() == null || account.getMatKhau().isBlank()) {
+            return;
         }
 
-        // Sinh token đặt lại mật khẩu (hiệu lực ngắn: 15 phút)
-        String token = java.util.UUID.randomUUID().toString();
         VerificationToken resetToken = new VerificationToken();
-        resetToken.setToken(token);
+        resetToken.setToken(UUID.randomUUID().toString());
         resetToken.setAccount(account);
-        resetToken.setLoaiToken("RESET_PASSWORD");
-        resetToken.setNgayHetHan(LocalDateTime.now().plusMinutes(15));
+        resetToken.setLoaiToken(RESET_PASSWORD);
+        resetToken.setNgayHetHan(now().plus(RESET_TOKEN_TTL));
 
-        verificationTokenRepository.save(resetToken);
-        emailService.sendResetPasswordEmail(account.getEmail(), token);
+        verificationTokenRepository.saveAndFlush(resetToken);
+        outbox.enqueue(account.getId(), AccountEmailOutbox.Purpose.RESET_PASSWORD, resetToken.getId());
     }
 
+    /**
+     * OC-03.02. Under the account lock the token, its purpose, its deadline and the account status are
+     * checked again. On success, in one transaction: the password changes, token_version increases (older
+     * JWTs are rejected), every RESET_PASSWORD token of the account is deleted (older links stop working and
+     * their pending e-mails are dropped) and the PASSWORD_CHANGED e-mail is queued. VERIFY_EMAIL tokens stay.
+     */
     @Transactional
     public void resetPassword(ResetPasswordRequestDTO request) {
         if (!request.getMatKhauMoi().equals(request.getNhapLaiMatKhauMoi())) {
             throw new IllegalArgumentException("Mật khẩu nhập lại không khớp.");
         }
-
-        VerificationToken resetToken = verificationTokenRepository.findByToken(request.getToken())
-            .orElseThrow(() -> new IllegalArgumentException("Mã đặt lại mật khẩu không tồn tại hoặc không hợp lệ."));
+        String unknown = "Mã đặt lại mật khẩu không tồn tại hoặc không hợp lệ.";
+        Account account = lockTokenOwner(request.getToken(), unknown);
+        VerificationToken resetToken = lockedToken(request.getToken(), account, unknown);
 
         // Ngăn dùng nhầm token VERIFY_EMAIL cho luồng đổi mật khẩu
-        if (!"RESET_PASSWORD".equals(resetToken.getLoaiToken())) {
+        if (!RESET_PASSWORD.equals(resetToken.getLoaiToken())) {
             throw new IllegalArgumentException("Loại token không hợp lệ cho thao tác đặt lại mật khẩu.");
         }
-
-        if (resetToken.getNgayHetHan().isBefore(LocalDateTime.now())) {
-            verificationTokenRepository.delete(resetToken);
+        if (isExpired(resetToken.getNgayHetHan())) {
             throw new IllegalStateException("Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi lại yêu cầu.");
         }
-
-        Account account = accountRepository.lockById(resetToken.getAccount().getId()).orElseThrow();
         if ("BI_KHOA".equals(account.getTrangThai())) {
             throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
+        }
+        if (!"DA_KICH_HOAT".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản chưa được kích hoạt.");
         }
         account.setMatKhau(passwordEncoder.encode(request.getMatKhauMoi()));
         // Mở khóa Brute-force nếu tài khoản đang bị khóa tạm thời
         account.setSoLanDangNhapSai(0);
         account.setThoiGianKhoa(null);
+        // OC-03.02: hủy các phiên đăng nhập cũ và thông báo đổi mật khẩu.
+        account.revokeTokens();
         accountRepository.save(account);
+        outbox.enqueue(account.getId(), AccountEmailOutbox.Purpose.PASSWORD_CHANGED, null);
 
-        // Xóa token để chỉ dùng đúng 1 lần
-        verificationTokenRepository.delete(resetToken);
+        // Mọi link đặt lại đã cấp (kể cả link vừa dùng) hết hiệu lực; token VERIFY_EMAIL giữ nguyên.
+        verificationTokenRepository.deleteByAccountAndPurpose(account.getId(), RESET_PASSWORD);
     }
 
     @Value("${google.client-id}")
@@ -282,11 +340,11 @@ public class AuthService {
             account.setTrangThai("DA_KICH_HOAT");
             account.setGoogleSubject(payload.getSubject());
             saveGoogleAccount(account);
+            customers.provision(account);
         }
 
         requireActive(account);
-        String token = jwtTokenProvider.generateToken(account.getId(), account.getEmail(), account.getVaiTro());
-        return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
+        return new AuthResponseDTO(issue(account), account.getEmail(), account.getVaiTro());
     }
 
     @Transactional

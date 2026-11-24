@@ -326,7 +326,8 @@ public class JdbcStayRepository implements StayRepository {
     @Override public void completeRefund(long id, long actor, Instant now) {
         jdbc.update("UPDATE hotel.refunds SET status='DONE',completed_at=?,recorded_by=? WHERE id=? AND status='PENDING'",ts(now),actor,id);
     }
-    @Override public void requestInvoiceDelivery(long invoiceId, Instant now) {
-        jdbc.update("INSERT INTO hotel.invoice_delivery_requests(invoice_id,requested_at) VALUES(?,?) ON CONFLICT DO NOTHING",invoiceId,ts(now));
+    /** Queue times are PostgreSQL time: the dispatcher's due check and max-age use clock_timestamp(). */
+    @Override public void requestInvoiceDelivery(long invoiceId) {
+        jdbc.update("INSERT INTO hotel.invoice_delivery_requests(invoice_id,requested_at,next_attempt_at) VALUES(?,clock_timestamp(),clock_timestamp()) ON CONFLICT DO NOTHING",invoiceId);
     }
 }

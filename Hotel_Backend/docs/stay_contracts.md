@@ -28,6 +28,6 @@ Các lựa chọn triển khai cần phân biệt với yêu cầu đã chốt:
 - Phí trả muộn chưa có công thức/mức cụ thể trong báo cáo. Tham số late_checkout_fee cho phép cấu hình mức cố định của chi nhánh, mặc định NULL (không tự áp phí). Khi khách sạn chốt chính sách theo giờ/phần trăm cần thay policy tương ứng.
 - DRAFT được tính lại từ các bảng chi phí nguồn. Không nhận điều chỉnh chỉ tồn tại trong invoice_lines. Sau đóng, chỉ Admin lập bản ghi `invoice_adjustments` riêng, không sửa hóa đơn gốc hoặc mở lại booking. Mỗi dòng là số tiền chênh lệch có dấu; tổng sau các lần điều chỉnh không được âm. Định dạng số ADJ-UUID, snapshot JSON của dòng và khóa idempotency là lựa chọn kỹ thuật, không phải quy định kế toán do báo cáo đặt ra.
 - API lưu trú dùng HTTP Basic từ `hotel.users`. `ReceptionistContext` kiểm tra lễ tân đang hoạt động và thuộc chi nhánh của đơn. API điều chỉnh hóa đơn yêu cầu Admin.
-- Delivery request là yêu cầu gửi; chưa có notification worker/SMTP nên không coi là email đã gửi. Thanh toán/hoàn QR/thẻ vẫn mô phỏng, đúng phạm vi báo cáo.
+- Delivery request là yêu cầu gửi; worker gửi sau commit và chỉ `SENT` mới có nghĩa SMTP đã nhận thư (chưa kiểm chứng SMTP thật). Thanh toán/hoàn QR/thẻ vẫn mô phỏng, đúng phạm vi báo cáo.
 
 Flyway V8 chứa schema lưu trú, Payment và điều chỉnh hóa đơn từ SQL 05–08. Xem [hướng dẫn database và kết quả kiểm thử](backend_review_2026-11-23.md) trước khi chuẩn bị DB.

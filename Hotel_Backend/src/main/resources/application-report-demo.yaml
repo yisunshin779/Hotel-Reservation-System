@@ -9,3 +9,10 @@ spring:
 app:
   public-base-url: ${HOTEL_PUBLIC_BASE_URL:http://localhost:8080}
   frontend-base-url: ${HOTEL_FRONTEND_BASE_URL:http://localhost:5173}
+hotel:
+  notifications:
+    # The demo database has no SMTP setup; keep queued requests untouched.
+    dispatch-enabled: false
+  schema:
+    # Report-only database (01_schema.sql + report data): Payment, Checkout and outbox tables are not required.
+    mode: ${HOTEL_SCHEMA_MODE:report-only}

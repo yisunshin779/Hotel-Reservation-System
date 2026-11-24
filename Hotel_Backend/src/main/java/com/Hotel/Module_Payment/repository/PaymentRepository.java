@@ -16,6 +16,21 @@ public class PaymentRepository {
         var value=rs.getTimestamp(field); return value==null?null:value.toInstant();
     }
     public Instant now() { return jdbc.queryForObject("SELECT clock_timestamp()",Timestamp.class).toInstant(); }
+    public long resolveReservationId(String reference) {
+        try {
+            return Long.parseLong(reference);
+        } catch (NumberFormatException ex) {
+            UUID code;
+            try {
+                code = UUID.fromString(reference);
+            } catch (IllegalArgumentException invalid) {
+                throw new PaymentException(400, "INVALID_REQUEST", "Reservation reference is invalid");
+            }
+            return jdbc.query("SELECT id FROM hotel.reservations WHERE code = ?",
+                    (rs, row) -> rs.getLong("id"), code.toString()).stream().findFirst()
+                    .orElseThrow(() -> new PaymentException(404, "RESERVATION_NOT_FOUND", "Reservation not found"));
+        }
+    }
     public PaymentReservation reservation(long id,boolean lock) {
         var rows=jdbc.query("""
             SELECT r.*,c.user_id FROM hotel.reservations r
@@ -58,11 +73,15 @@ public class PaymentRepository {
         jdbc.update("UPDATE hotel.payment_intents SET state='CANCELLED' WHERE id=?",intent.id());
         jdbc.update("UPDATE hotel.payments SET status='FAILED' WHERE id=? AND status='PENDING'",intent.paymentId());
     }
+    public void cancelHold(long id) {
+        jdbc.query("SELECT hotel.cancel_reservation(?, 'CUSTOMER_CANCELLED')", rs -> {}, id);
+    }
     public void complete(PaymentIntent intent) { jdbc.update("UPDATE hotel.payment_intents SET state='COMPLETED' WHERE id=?",intent.id()); }
     public void confirm(long id,boolean cash) {
         // The existing stay validator uses a non-null hold to identify advance-payment bookings.
         jdbc.update("UPDATE hotel.reservations SET status='CONFIRMED',hold_expires_at=CASE WHEN ? THEN NULL ELSE hold_expires_at END,updated_at=clock_timestamp(),version=version+1 WHERE id=?",cash,id);
-        jdbc.update("INSERT INTO hotel.booking_confirmation_requests(reservation_id) VALUES(?) ON CONFLICT DO NOTHING",id);
+        // Due now in PostgreSQL time (V12 column): the dispatcher compares queue times with clock_timestamp().
+        jdbc.update("INSERT INTO hotel.booking_confirmation_requests(reservation_id,next_attempt_at) VALUES(?,clock_timestamp()) ON CONFLICT DO NOTHING",id);
     }
     public BigDecimal paid(long id) { return jdbc.queryForObject("SELECT coalesce(sum(amount),0) FROM hotel.payments WHERE reservation_id=? AND status='PAID'",BigDecimal.class,id); }
     public BigDecimal refunded(long id) { return jdbc.queryForObject("SELECT coalesce(sum(amount),0) FROM hotel.refunds WHERE reservation_id=? AND status='DONE'",BigDecimal.class,id); }

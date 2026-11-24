@@ -37,3 +37,15 @@ Dùng lại `01_schema.sql` trên database đã tạo sẽ lỗi vì không ph�
 - Backend đã có UC16/17/19, hóa đơn điều chỉnh riêng của Admin và nhánh hoàn chênh lệch tại checkout; các luồng thay đổi booking, hoàn do hủy/no-show, quản lý buồng phòng và xác thực tài khoản chưa triển khai đầy đủ. Cấu hình thuế/phí không thay thế việc chốt chính sách thực tế.
 - Báo cáo doanh thu dựa vào hóa đơn đã chốt; quy ước doanh thu, VAT phải được thống nhất trước triển khai thực tế.
 - Backend có integration suite chạy trên PostgreSQL riêng, tạo lại schema chỉ trong DB test `hotel_lifecycle_test`; xem README backend. Các script SQL acceptance/negative là kiểm thử bổ sung, không thay thế test API.
+
+## Truy vấn đối chiếu chỉ đọc
+
+`sql/reconciliation/` chứa các truy vấn chạy trên bản sao trước khi quyết định thay đổi dữ liệu hoặc quyền. Mỗi file mở `BEGIN READ ONLY` và không ghi dữ liệu.
+
+| File | Mục đích |
+| --- | --- |
+| `15_report_adjustment_reconciliation.sql` | So sánh doanh thu báo cáo với chứng từ điều chỉnh. Cuối file có các câu hỏi kế toán cần chốt. |
+| `16_legacy_reservation_inventory.sql` | Phân loại đơn cũ trong `hotel.reservation` trước cutover Booking. |
+| `17_db_privileges_inventory.sql` | Kiểm kê quyền ghi bảng trạng thái và quyền EXECUTE trên routine, kể cả PUBLIC. |
+
+Thay đổi schema sau script 08 nằm trong migration Flyway V9–V13 của `Hotel_Backend`.

@@ -27,6 +27,10 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /** OC-03.01: identical for existing, unknown and ineligible e-mails. */
+    public static final String FORGOT_PASSWORD_MESSAGE =
+        "Nếu email thuộc một tài khoản đang hoạt động, hướng dẫn đặt lại mật khẩu sẽ được gửi tới email này.";
+
     // Constructor Injection
     public AuthController(AuthService authService) {
         this.authService = authService;
@@ -63,11 +67,13 @@ public class AuthController {
     @GetMapping("/verify")
     public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
         // Gọi Service rà soát và đối chiếu token
-        authService.verifyEmailToken(token);
-    
+        var profile = authService.verifyEmailToken(token);
+
+        // bookingProfile: READY, PENDING_REVIEW (cần hỗ trợ liên kết hồ sơ trước khi đặt phòng) hoặc NOT_REQUIRED.
         return ResponseEntity.ok(java.util.Map.of(
             "status", "success",
-            "message", "Tài khoản đã được xác thực thành công. Bạn có thể đăng nhập."
+            "message", "Tài khoản đã được xác thực thành công. Bạn có thể đăng nhập.",
+            "bookingProfile", profile.bookingProfile()
         ));
     }
 
@@ -76,7 +82,7 @@ public class AuthController {
         authService.forgotPassword(request.getEmail());
         return ResponseEntity.ok(Map.of(
             "status", "success",
-            "message", "Liên kết đặt lại mật khẩu đã được gửi tới email của bạn."
+            "message", FORGOT_PASSWORD_MESSAGE
         ));
     }
 

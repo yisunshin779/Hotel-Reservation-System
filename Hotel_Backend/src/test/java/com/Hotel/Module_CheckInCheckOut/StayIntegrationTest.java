@@ -50,11 +50,26 @@ class StayIntegrationTest {
         return checkin.confirm(id,rooms,null,new StayGuest("Occupant",identity,null),staff);
     }
     private long count(String table) { return jdbc.queryForObject("SELECT count(*) FROM hotel."+table,Long.class); }
-    @BeforeAll void schema() throws Exception {
-        assertTrue(System.getenv("HOTEL_TEST_DB_URL").endsWith("/hotel_lifecycle_test"));
+    /**
+     * The start-up schema check reads this database before {@link #schema()} runs. Start from an empty
+     * schema so the layout left by a previous run (or by an older version of this suite) cannot block it.
+     */
+    @org.springframework.test.context.DynamicPropertySource
+    static void freshSchemaBeforeContext(org.springframework.test.context.DynamicPropertyRegistry registry) throws Exception {
+        String url = System.getenv("HOTEL_TEST_DB_URL");
+        if (url == null || !url.endsWith("/hotel_lifecycle_test")) return;
+        String user = System.getenv().getOrDefault("HOTEL_TEST_DB_USER", "hotel_test");
+        // Rebuilt before Spring starts: the layout left by an earlier run is dropped, and an operational start-up
+        // requires the Payment and Checkout tables. Same layout as Flyway V8 plus V12.
+        var jdbc = new org.springframework.jdbc.core.JdbcTemplate(
+                new org.springframework.jdbc.datasource.DriverManagerDataSource(url, user, ""));
         jdbc.execute("DROP SCHEMA IF EXISTS hotel CASCADE");
-        for (String file: List.of("01_schema.sql","02_operations.sql","05_checkin_checkout.sql","06_stay_contracts.sql","08_invoice_adjustments.sql"))
+        for (String file: List.of("01_schema.sql","02_operations.sql","05_checkin_checkout.sql","06_stay_contracts.sql","07_payment.sql","08_invoice_adjustments.sql"))
             jdbc.execute(Files.readString(Path.of("../Hotel_Database/sql",file)));
+        jdbc.execute(Files.readString(Path.of("src/main/resources/db/migration/V12__payment_expiry_and_outbox.sql")));
+    }
+    @BeforeAll void schema() {
+        assertTrue(System.getenv("HOTEL_TEST_DB_URL").endsWith("/hotel_lifecycle_test"));
     }
     @BeforeEach void fixture() {
         jdbc.execute("TRUNCATE hotel.branches,hotel.roles,hotel.customers,hotel.promotions RESTART IDENTITY CASCADE");
@@ -615,5 +630,72 @@ class StayIntegrationTest {
             .andExpect(jsonPath("$.reservationId").value(id)).andExpect(jsonPath("$.total").value(200))
             .andExpect(jsonPath("$.lines[0].quantity").value(1))
             .andExpect(jsonPath("$.lines[0].unitPrice").value(100));
+    }
+
+    // ---- OC-21.01 cleaning requests are bound to hotel.rooms.version ----
+    @Autowired HousekeepingService housekeeping;
+    private void stay(String key) {
+        long id=booking(1); checkIn(id,List.of(1L),"AB123456",actor);
+        paid(id,"200","CASH",key); checkout.confirm(id,actor);
+    }
+    private String cleaningConflict(int version, HousekeepingService.CleaningStatus expected, HousekeepingService.CleaningStatus target) {
+        return assertThrows(StayException.class,()->housekeeping.update(1,expected,version,target,"cleaner@example.test")).code();
+    }
+    @Test void cleaningRequestsAreBoundToTheRoomVersionAcrossTwoStaysAndConcurrentRetries() throws Exception {
+        var DIRTY=HousekeepingService.CleaningStatus.DIRTY; var CLEANING=HousekeepingService.CleaningStatus.CLEANING;
+        var READY=HousekeepingService.CleaningStatus.READY;
+        long role=jdbc.queryForObject("INSERT INTO hotel.roles(code,name) VALUES('HOUSEKEEPING','Buồng phòng') RETURNING id",Long.class);
+        jdbc.update("INSERT INTO hotel.users(email,full_name,password_hash,role_id,branch_id) VALUES('cleaner@example.test','Cleaner',?,?,1)",STAFF_HASH,role);
+        String cleaner="cleaner@example.test";
+
+        stay("FIRST-STAY-KEY");
+        var afterFirst=housekeeping.room(1,cleaner);
+        assertEquals(DIRTY,afterFirst.cleaningStatus());
+        int v1=afterFirst.version();
+        // The read path over HTTP exposes the same version.
+        mvc.perform(get("/api/v1/housekeeping/rooms/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic(cleaner,"test-password")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(v1)).andExpect(jsonPath("$.cleaningStatus").value("DIRTY"));
+        assertEquals(new HousekeepingService.Result(CLEANING,v1+1,true),housekeeping.update(1,DIRTY,v1,CLEANING,cleaner));
+        assertEquals(new HousekeepingService.Result(READY,v1+2,true),housekeeping.update(1,CLEANING,v1+1,READY,cleaner));
+
+        stay("SECOND-STAY-KEY");
+        var afterSecond=housekeeping.room(1,cleaner);
+        assertEquals(DIRTY,afterSecond.cleaningStatus());
+        int v2=afterSecond.version();
+        assertTrue(v2>v1+2,"check-in and check-out increase the version");
+        // Requests from the first stay: status DIRTY matches again, the version does not.
+        assertEquals("STALE_CLEANING_STATUS",cleaningConflict(v1,DIRTY,CLEANING));
+        assertEquals("STALE_CLEANING_STATUS",cleaningConflict(v1+1,CLEANING,READY));
+        assertEquals(DIRTY,housekeeping.room(1,cleaner).cleaningStatus());
+
+        assertEquals(new HousekeepingService.Result(CLEANING,v2+1,true),housekeeping.update(1,DIRTY,v2,CLEANING,cleaner));
+        assertEquals(new HousekeepingService.Result(CLEANING,v2+1,false),housekeeping.update(1,DIRTY,v2,CLEANING,cleaner));
+
+        // Two identical requests at the same time: one writes, the other is acknowledged as a retry.
+        var go=new CountDownLatch(1); var pool=Executors.newFixedThreadPool(2);
+        try {
+            Callable<HousekeepingService.Result> finish=()->{ go.await(); return housekeeping.update(1,CLEANING,v2+1,READY,cleaner); };
+            var a=pool.submit(finish); var b=pool.submit(finish); go.countDown();
+            var results=List.of(a.get(10,TimeUnit.SECONDS),b.get(10,TimeUnit.SECONDS));
+            assertEquals(1,results.stream().filter(HousekeepingService.Result::changed).count(),results.toString());
+            assertTrue(results.stream().allMatch(r->r.cleaningStatus()==READY && r.version()==v2+2),results.toString());
+        } finally { pool.shutdownNow(); }
+        // Two different requests at the same time on the same version: exactly one applies.
+        jdbc.update("UPDATE hotel.rooms SET cleaning='DIRTY',version=version+1 WHERE id=1"); // a later checkout
+        int v3=housekeeping.room(1,cleaner).version();
+        var go2=new CountDownLatch(1); var pool2=Executors.newFixedThreadPool(2);
+        try {
+            Callable<String> start=()->{ go2.await(); try { return housekeeping.update(1,DIRTY,v3,CLEANING,cleaner).changed()?"APPLIED":"RETRY"; }
+                catch(StayException e) { return e.code(); } };
+            Callable<String> skip=()->{ go2.await(); try { return housekeeping.update(1,CLEANING,v3,READY,cleaner).changed()?"APPLIED":"RETRY"; }
+                catch(StayException e) { return e.code(); } };
+            var a=pool2.submit(start); var b=pool2.submit(skip); go2.countDown();
+            assertEquals(List.of("APPLIED","STALE_CLEANING_STATUS"),List.of(a.get(10,TimeUnit.SECONDS),b.get(10,TimeUnit.SECONDS)));
+        } finally { pool2.shutdownNow(); }
+        assertEquals(List.of("DIRTY>CLEANING@"+v1,"CLEANING>READY@"+(v1+1),"DIRTY>CLEANING@"+v2,"CLEANING>READY@"+(v2+1),"DIRTY>CLEANING@"+v3),
+            jdbc.queryForList("""
+                SELECT (before_data->>'cleaning')||'>'||(after_data->>'cleaning')||'@'||(before_data->>'version') FROM hotel.audit_logs
+                WHERE action='ROOM_CLEANING_STATUS_CHANGED' AND entity_id=1 ORDER BY id
+                """,String.class));
     }
 }

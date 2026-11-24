@@ -8,6 +8,7 @@ import com.Hotel.Module_CheckInCheckOut.entity.Reservation;
 import com.Hotel.Module_CheckInCheckOut.entity.ReservationStatus;
 import com.Hotel.Module_CheckInCheckOut.entity.StayException;
 import com.Hotel.Module_CheckInCheckOut.repository.StayRepository;
+import com.Hotel.config.MockPaymentPolicy;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -20,8 +21,9 @@ public class CheckOutService {
     private final StayRepository repo;
     private final BillingService billing;
     private final Clock clock;
-    public CheckOutService(StayRepository repo, BillingService billing, Clock clock) {
-        this.repo = repo; this.billing = billing; this.clock = clock;
+    private final MockPaymentPolicy mock;
+    public CheckOutService(StayRepository repo, BillingService billing, Clock clock, MockPaymentPolicy mock) {
+        this.repo = repo; this.billing = billing; this.clock = clock; this.mock = mock;
     }
 
     private Reservation requireStay(long id, Receptionist actor, boolean lock) {
@@ -35,6 +37,8 @@ public class CheckOutService {
     }
     @Transactional
     public Bill payment(long id, BigDecimal amount, String method, String key, Receptionist actor) {
+        // Checked before the lock and before the ledger writer, so a refused call writes nothing.
+        if (!mock.allows(method)) throw StayException.conflict(MockPaymentPolicy.DISABLED_CODE, MockPaymentPolicy.DISABLED_MESSAGE);
         var r = requireStay(id, actor, true);
         if (amount == null || amount.signum() <= 0 || amount.scale() > 2 || amount.precision() > 14
                 || key == null || !key.matches("[A-Za-z0-9:_-]{8,100}")
@@ -59,7 +63,7 @@ public class CheckOutService {
         if (repo.assignedRoomIds(id).isEmpty()) throw StayException.conflict("MISSING_ASSIGNMENT", "Đơn không có phòng đang lưu trú.");
         Instant now = clock.instant();
         var invoice = repo.closeInvoice(r, bill, "INV-" + UUID.randomUUID(), now);
-        repo.requestInvoiceDelivery(invoice.id(),now);
+        repo.requestInvoiceDelivery(invoice.id());
         repo.release(id, now);
         repo.audit(actor.id(), id, "CHECK_OUT", "{\"invoiceId\":" + invoice.id() + "}");
         return new CheckOutResultDTO(id, "CHECKED_OUT", invoice.id(), "CLOSED", bill.grossAmount(), bill.paidAmount(),

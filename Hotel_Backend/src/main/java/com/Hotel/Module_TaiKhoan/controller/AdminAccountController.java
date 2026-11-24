@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.Hotel.Module_TaiKhoan.dto.AccountProfileResponseDTO;
 import com.Hotel.Module_TaiKhoan.dto.UpdateRoleRequestDTO;
 import com.Hotel.Module_TaiKhoan.dto.UpdateStatusRequestDTO;
+import com.Hotel.Module_TaiKhoan.exception.AccountAccessDeniedException;
+import com.Hotel.Module_TaiKhoan.security.JwtTokenProvider;
 import com.Hotel.Module_TaiKhoan.service.AccountService;
 
 import jakarta.validation.Valid;
@@ -48,7 +50,7 @@ public class AdminAccountController {
                                                @Valid @RequestBody UpdateRoleRequestDTO request,
                                                Authentication authentication) {
         AccountProfileResponseDTO updated =
-                accountService.updateAccountRole(id, request.getVaiTro(), authentication.getName());
+                accountService.updateAccountRole(id, request.getVaiTro(), session(authentication));
         return ResponseEntity.ok(Map.of(
             "status", "success",
             "message", "Cập nhật vai trò tài khoản thành công!",
@@ -62,11 +64,20 @@ public class AdminAccountController {
                                                  @Valid @RequestBody UpdateStatusRequestDTO request,
                                                  Authentication authentication) {
         AccountProfileResponseDTO updated =
-                accountService.updateAccountStatus(id, request.getTrangThai(), authentication.getName());
+                accountService.updateAccountStatus(id, request.getTrangThai(), session(authentication));
         return ResponseEntity.ok(Map.of(
             "status", "success",
             "message", "Cập nhật trạng thái tài khoản thành công!",
             "data", updated
         ));
+    }
+
+    /** The JWT session verified by JwtAuthenticationFilter; the service re-checks it under the write lock. */
+    private static JwtTokenProvider.Session session(Authentication authentication) {
+        if (authentication != null && authentication.getDetails() instanceof JwtTokenProvider.Session session) {
+            return session;
+        }
+        throw new AccountAccessDeniedException(AccountService.ADMIN_ACCESS_REVOKED,
+                "Phiên quản trị không hợp lệ. Vui lòng đăng nhập lại.");
     }
 }

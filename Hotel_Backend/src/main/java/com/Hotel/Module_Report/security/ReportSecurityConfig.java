@@ -1,5 +1,7 @@
 package com.Hotel.Module_Report.security;
 
+import com.Hotel.Module_TaiKhoan.security.LinkedHotelIdentity;
+import com.Hotel.config.BasicAuthPolicy;
 import org.springframework.context.annotation.*;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,22 +19,21 @@ public class ReportSecurityConfig {
         return encoder;
     }
     @Bean @Order(1)
-    SecurityFilterChain reportSecurity(HttpSecurity http, ReportIdentityService users) throws Exception {
+    SecurityFilterChain reportSecurity(HttpSecurity http, ReportIdentityService users, LinkedHotelIdentity linkedIdentity,
+                                       BasicAuthPolicy basic) throws Exception {
         var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
         provider.setUserDetailsService(users);
         provider.setPasswordEncoder(reportPasswordEncoder());
-        return http.securityMatcher("/api/reports/**").authenticationManager(new org.springframework.security.authentication.ProviderManager(provider))
+        linkedIdentity.configure(http);
+        http.securityMatcher("/api/reports/**").authenticationManager(new org.springframework.security.authentication.ProviderManager(provider))
                 .csrf(csrf -> csrf.disable()).requestCache(cache -> cache.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.anyRequest().hasAnyRole("ADMIN", "MANAGER"))
-                .httpBasic(basic -> basic.authenticationEntryPoint((request,response,error) -> {
-                    response.setStatus(401); response.setHeader("WWW-Authenticate", "Basic realm=\"Reports\"");
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"status\":401,\"message\":\"Authentication required\"}");
-                }))
                 .exceptionHandling(errors -> errors.accessDeniedHandler((request,response,error) -> {
                     response.setStatus(403); response.setContentType("application/json");
                     response.getWriter().write("{\"status\":403,\"message\":\"Report access denied\"}");
-                })).build();
+                }));
+        basic.apply(http, "Reports", "{\"status\":401,\"message\":\"Authentication required\"}");
+        return http.build();
     }
 }
