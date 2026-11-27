@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AuthApi } from '../api/hotel'
+import { AuthApi, USE_MOCK_AUTH } from '../api/hotel'
 import { useAuth } from '../store/auth'
 
 const DEMOS = [
@@ -111,7 +111,7 @@ export default function LoginPage() {
             <Link to="/register">{t('Tạo tài khoản')}</Link>
           </div>
 
-          <div className="demo">
+          {USE_MOCK_AUTH && <div className="demo">
             <span className="mut">{t('Dùng tài khoản demo:')}</span>
             <div>
               {DEMOS.map((d) => (
@@ -125,7 +125,7 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
         </form>
       </div>
     </div>

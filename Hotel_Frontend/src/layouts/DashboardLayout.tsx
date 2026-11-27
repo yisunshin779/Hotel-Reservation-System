@@ -41,6 +41,7 @@ const TITLES: Record<string, string> = {
   '/dashboard/reports': 'Báo cáo',
   '/dashboard/pricing': 'Giá & khuyến mãi',
   '/dashboard/reviews': 'Đánh giá',
+  '/dashboard/accounts': 'Quản lý tài khoản',
 }
 
 export default function DashboardLayout() {
@@ -71,6 +72,10 @@ export default function DashboardLayout() {
             </nav>
           </div>
         ))}
+        {user?.role === 'admin' && <div>
+          <div className="dsh-group">Hệ thống</div>
+          <nav><NavLink to="/dashboard/accounts" onClick={() => setOpen(false)}>Tài khoản</NavLink></nav>
+        </div>}
 
         <div className="dsh-spacer" />
 

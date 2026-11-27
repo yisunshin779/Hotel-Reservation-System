@@ -16,8 +16,8 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) useAuth.getState().logout()
-    return Promise.reject(
-      new Error(err.response?.data?.message ?? 'Không kết nối được máy chủ.')
-    )
+    const body = err.response?.data
+    const message = typeof body === 'string' ? body : body?.message
+    return Promise.reject(new Error(message ?? 'Không kết nối được máy chủ.'))
   }
 )

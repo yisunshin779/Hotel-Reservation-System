@@ -11,6 +11,19 @@ export interface User {
   role: Role;
   branchId?: string;
   phone?: string;
+  cccd?: string;
+}
+
+export interface ManagedAccount {
+  id: string
+  hoTen: string
+  email: string
+  soDienThoai?: string | null
+  cccd?: string | null
+  authProvider: string
+  vaiTro: string
+  trangThai: string
+  thoiGianTao: string
 }
 
 export interface Branch {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ProfileApi } from '../api/hotel'
+import { ProfileApi, USE_MOCK_AUTH } from '../api/hotel'
 import { useAuth } from '../store/auth'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -25,7 +25,7 @@ export default function ProfilePage() {
   const pwOk = pw.length >= 8 && /[A-Za-z]/.test(pw) && /\d/.test(pw)
 
   const save = useMutation({
-    mutationFn: () => ProfileApi.update(user!.email, { fullName: name, phone }),
+    mutationFn: () => ProfileApi.update(user!.email, { fullName: name, phone, cccd: user?.cccd ?? '' }),
     onSuccess: (u) => setUser(u),
   })
   const change = useMutation({
@@ -78,7 +78,7 @@ export default function ProfilePage() {
             </button>
           </form>
 
-          <form className="panel motion-profile-panel" onSubmit={submitPassword}>
+          {USE_MOCK_AUTH ? <form className="panel motion-profile-panel" onSubmit={submitPassword}>
             <h2>{t('Đổi mật khẩu')}</h2>
             <label>
               {t('Mật khẩu hiện tại')}
@@ -99,7 +99,7 @@ export default function ProfilePage() {
             <button className="btn primary shine" disabled={change.isPending || !cur || !pwOk || pw !== pw2}>
               {change.isPending ? t('Đang xử lý...') : t('Đổi mật khẩu')}
             </button>
-          </form>
+          </form> : <div className="panel motion-profile-panel"><h2>Đổi mật khẩu</h2><p className="mut">Backend gửi liên kết đặt lại mật khẩu qua email. Dùng mục “Quên mật khẩu?” ở trang đăng nhập.</p></div>}
         </div>
       </div>
     </div>

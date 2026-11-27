@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AuthApi } from '../api/hotel'
+import { AuthApi, USE_MOCK_AUTH } from '../api/hotel'
 import { useAuth } from '../store/auth'
 import AuthShell from '../components/AuthShell'
 
@@ -10,6 +10,7 @@ const LEVELS = ['Rất yếu', 'Yếu', 'Trung bình', 'Khá', 'Mạnh']
 export default function RegisterPage() {
   const [f, setF] = useState({ fullName: '', email: '', phone: '', password: '', confirm: '' })
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const login = useAuth((s) => s.login)
   const navigate = useNavigate()
@@ -17,7 +18,7 @@ export default function RegisterPage() {
   const set = (k: keyof typeof f, v: string) => setF({ ...f, [k]: v })
 
   const phoneOk = /^0\d{9}$/.test(f.phone)
-  const pwOk = f.password.length >= 8 && /[A-Za-z]/.test(f.password) && /\d/.test(f.password)
+  const pwOk = f.password.length >= 8 && /[A-Za-z]/.test(f.password) && /\d/.test(f.password) && (USE_MOCK_AUTH || /^[A-Za-z\d]+$/.test(f.password))
   const matchOk = f.password === f.confirm
   const score = [
     f.password.length >= 8,
@@ -33,11 +34,15 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      const { token, user } = await AuthApi.register({
+      const result = await AuthApi.register({
         fullName: f.fullName, email: f.email, phone: f.phone, password: f.password,
       })
-      login(token, user)
-      navigate('/search', { replace: true })
+      if (result.requiresVerification) {
+        setNotice(result.message ?? 'Kiểm tra email để xác thực tài khoản trước khi đăng nhập.')
+      } else if (result.token && result.user) {
+        login(result.token, result.user)
+        navigate('/search', { replace: true })
+      }
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -51,6 +56,13 @@ export default function RegisterPage() {
       sub="Chỉ mất một phút để đăng ký và nhận ưu đãi dành cho thành viên."
       perks={['Lưu thông tin cho lần đặt sau', 'Xem và hủy đơn dễ dàng', 'Nhận mã ưu đãi thành viên']}
     >
+      {notice ? (
+        <div className="auth-form">
+          <h1>Kiểm tra email</h1>
+          <p className="ok-msg">{notice}</p>
+          <Link to="/login" className="btn primary">Đến trang đăng nhập</Link>
+        </div>
+      ) : (
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>Đăng ký</h1>
 
@@ -76,7 +88,7 @@ export default function RegisterPage() {
               <small className="hint">Độ mạnh: {LEVELS[score]}</small>
             </>
           )}
-          {f.password && !pwOk && <small className="err">Tối thiểu 8 ký tự, có cả chữ và số.</small>}
+          {f.password && !pwOk && <small className="err">Backend yêu cầu ít nhất 8 ký tự gồm chữ Latin và số, không dấu cách hoặc ký tự đặc biệt.</small>}
         </label>
         <label>
           Nhập lại mật khẩu
@@ -95,6 +107,7 @@ export default function RegisterPage() {
           <Link to="/login">Đăng nhập</Link>
         </div>
       </form>
+      )}
     </AuthShell>
   )
 }

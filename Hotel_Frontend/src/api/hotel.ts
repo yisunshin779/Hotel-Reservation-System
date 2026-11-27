@@ -1,9 +1,10 @@
-import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem, Review } from '../types'
+import type { User, Role, Branch, RoomType, SearchParams, Availability, Reservation, CreateReservation, Room, RoomStatus, ReportSummary, Promotion, PriceRow, ServiceItem, Review, ManagedAccount } from '../types'
 import { api } from './client'
 import { nightsBetween, today } from '../lib'
 import { useAuth } from '../store/auth'
 
-export const USE_MOCK = true // đổi thành false khi backend có API thật
+export const USE_MOCK = true // Dữ liệu giả cho các module chưa có API phù hợp.
+export const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH !== 'false'
 
 // ---------- Đăng nhập ----------
 const MOCK_USERS: Record<string, { password: string; user: User }> = {
@@ -28,20 +29,37 @@ const saveUser = (email: string, s: StoredUser) => {
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+const mapBackendUser = (profile: { id: string; hoTen: string; email: string; soDienThoai?: string | null; cccd?: string | null; vaiTro: string }): User => {
+  const role = profile.vaiTro.replace(/^ROLE_/, '').toLowerCase()
+  const roleMap: Record<string, Role> = { user: 'guest', guest: 'guest', receptionist: 'receptionist', manager: 'manager', admin: 'admin' }
+  return {
+    id: profile.id,
+    fullName: profile.hoTen,
+    email: profile.email,
+    phone: profile.soDienThoai ?? undefined,
+    cccd: profile.cccd ?? undefined,
+    role: roleMap[role] ?? 'guest',
+  }
+}
+
 export const AuthApi = {
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
-    if (USE_MOCK) {
+    if (USE_MOCK_AUTH) {
       await wait(400)
       const found = loadUsers()[email.trim().toLowerCase()]
       if (!found || found.password !== password) throw new Error('Thông tin đăng nhập không đúng.')
       return { token: 'mock-token', user: found.user }
     }
-    const res = await api.post('/auth/login', { email, password })
-    return res.data
+    const response = await api.post('/v1/auth/login', { email, matKhau: password })
+    const auth = response.data.data as { token: string }
+    const profile = await api.get('/v1/accounts/me', {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+    return { token: auth.token, user: mapBackendUser(profile.data.data) }
   },
 
-  async register(b: { fullName: string; email: string; phone: string; password: string }): Promise<{ token: string; user: User }> {
-    if (USE_MOCK) {
+  async register(b: { fullName: string; email: string; phone: string; password: string }): Promise<{ token?: string; user?: User; requiresVerification?: boolean; message?: string }> {
+    if (USE_MOCK_AUTH) {
       await wait(500)
       const email = b.email.trim().toLowerCase()
       if (loadUsers()[email]) throw new Error('Email này đã được đăng ký.')
@@ -49,40 +67,51 @@ export const AuthApi = {
       saveUser(email, { password: b.password, user })
       return { token: 'mock-token', user }
     }
-    return (await api.post('/auth/register', b)).data
+    const response = await api.post('/v1/auth/register', {
+      hoTen: b.fullName,
+      email: b.email,
+      soDienThoai: b.phone,
+      matKhau: b.password,
+      nhapLaiMatKhau: b.password,
+    })
+    return { requiresVerification: true, message: response.data.message }
   },
 
-  // Gửi mã khôi phục. Bản giả lập trả mã về để hiển thị thử; backend thật sẽ gửi qua email
-  async forgot(email: string): Promise<{ demoCode?: string }> {
-    if (USE_MOCK) {
+  async forgot(email: string): Promise<{ demoCode?: string; message?: string }> {
+    if (USE_MOCK_AUTH) {
       await wait(500)
       const mail = email.trim().toLowerCase()
-      if (!loadUsers()[mail]) return {} // không tiết lộ email có tồn tại hay không
+      if (!loadUsers()[mail]) return {}
       const code = String(Math.floor(100000 + Math.random() * 900000))
       localStorage.setItem(RESET_KEY, JSON.stringify({ email: mail, code, expires: Date.now() + 10 * 60 * 1000 }))
       return { demoCode: code }
     }
-    await api.post('/auth/forgot-password', { email })
-    return {}
+    const response = await api.post('/v1/auth/forgot-password', { email })
+    return { message: response.data.message }
   },
 
   async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
-    if (USE_MOCK) {
-      await wait(500)
-      const mail = email.trim().toLowerCase()
-      const saved = JSON.parse(localStorage.getItem(RESET_KEY) ?? 'null')
-      if (!saved || saved.email !== mail || saved.code !== code.trim() || saved.expires < Date.now()) {
-        throw new Error('Mã không đúng hoặc đã hết hạn.')
-      }
-      const found = loadUsers()[mail]
-      saveUser(mail, { password: newPassword, user: found.user })
-      localStorage.removeItem(RESET_KEY)
-      return
+    if (!USE_MOCK_AUTH) throw new Error('Dùng liên kết đặt lại mật khẩu đã gửi qua email.')
+    await wait(500)
+    const mail = email.trim().toLowerCase()
+    const saved = JSON.parse(localStorage.getItem(RESET_KEY) ?? 'null')
+    if (!saved || saved.email !== mail || saved.code !== code.trim() || saved.expires < Date.now()) {
+      throw new Error('Mã không đúng hoặc đã hết hạn.')
     }
-    await api.post('/auth/reset-password', { email, code, newPassword })
+    const found = loadUsers()[mail]
+    saveUser(mail, { password: newPassword, user: found.user })
+    localStorage.removeItem(RESET_KEY)
+  },
+
+  async resetPasswordWithToken(token: string, newPassword: string, confirmPassword: string): Promise<void> {
+    const response = await api.post('/v1/auth/reset-password', {
+      token,
+      matKhauMoi: newPassword,
+      nhapLaiMatKhauMoi: confirmPassword,
+    })
+    if (response.data.status !== 'success') throw new Error(response.data.message ?? 'Không thể đặt lại mật khẩu.')
   },
 }
-
 // ---------- Chi nhánh và tìm phòng ----------
 const MOCK_BRANCHES: Branch[] = [
   { branchId: 'hn', name: 'Hà Nội – Hoàn Kiếm', address: '' },
@@ -458,8 +487,8 @@ export const RoomTypeApi = {
 
 // ---------- Hồ sơ cá nhân ----------
 export const ProfileApi = {
-  async update(email: string, data: { fullName: string; phone: string }): Promise<User> {
-    if (USE_MOCK) {
+  async update(email: string, data: { fullName: string; phone: string; cccd?: string }): Promise<User> {
+    if (USE_MOCK_AUTH) {
       await wait(400)
       const found = loadUsers()[email]
       if (!found) throw new Error('Không tìm thấy tài khoản.')
@@ -467,18 +496,34 @@ export const ProfileApi = {
       saveUser(email, { password: found.password, user })
       return user
     }
-    return (await api.put('/users/me', data)).data
+    const response = await api.put('/v1/accounts/me', { hoTen: data.fullName, soDienThoai: data.phone, cccd: data.cccd })
+    return mapBackendUser(response.data.data)
   },
 
   async changePassword(email: string, current: string, next: string): Promise<void> {
-    if (USE_MOCK) {
-      await wait(400)
-      const found = loadUsers()[email]
-      if (!found || found.password !== current) throw new Error('Mật khẩu hiện tại không đúng.')
-      saveUser(email, { password: next, user: found.user })
-      return
-    }
-    await api.post('/users/me/change-password', { currentPassword: current, newPassword: next })
+    if (!USE_MOCK_AUTH) throw new Error('Backend hiện hỗ trợ đổi mật khẩu qua liên kết gửi tới email.')
+    await wait(400)
+    const found = loadUsers()[email]
+    if (!found || found.password !== current) throw new Error('Mật khẩu hiện tại không đúng.')
+    saveUser(email, { password: next, user: found.user })
+  },
+}
+
+export const AdminAccountsApi = {
+  async list(): Promise<ManagedAccount[]> {
+    if (USE_MOCK_AUTH) throw new Error('Hãy bật VITE_USE_MOCK_AUTH=false và đăng nhập tài khoản admin backend để quản lý tài khoản.')
+    const response = await api.get('/v1/admin/accounts')
+    return response.data.data
+  },
+
+  async updateRole(id: string, vaiTro: string): Promise<ManagedAccount> {
+    const response = await api.patch(`/v1/admin/accounts/${id}/role`, { vaiTro })
+    return response.data.data
+  },
+
+  async updateStatus(id: string, trangThai: string): Promise<ManagedAccount> {
+    const response = await api.patch(`/v1/admin/accounts/${id}/status`, { trangThai })
+    return response.data.data
   },
 }
 

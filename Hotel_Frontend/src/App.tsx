@@ -27,6 +27,7 @@ import ReportsPage from './pages/dashboard/ReportsPage'
 import PricingPage from './pages/dashboard/PricingPage'
 import ReviewsPage from './pages/dashboard/ReviewsPage'
 import OverviewPage from './pages/dashboard/OverviewPage'
+import AccountsPage from './pages/dashboard/AccountsPage'
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="reset-password" element={<ForgotPasswordPage />} />
 
         <Route element={<RequireRole roles={['guest', 'receptionist', 'manager', 'admin']} />}>
           <Route path="profile" element={<ProfilePage />} />
@@ -69,6 +71,9 @@ export default function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="pricing" element={<PricingPage />} />
             <Route path="reviews" element={<ReviewsPage />} />
+          </Route>
+          <Route element={<RequireRole roles={['admin']} />}>
+            <Route path="accounts" element={<AccountsPage />} />
           </Route>
         </Route>
       </Route>
