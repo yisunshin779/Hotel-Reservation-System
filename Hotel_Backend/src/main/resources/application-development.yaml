@@ -1,0 +1,7 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: ${HOTEL_DDL_AUTO:update}
+app:
+  public-base-url: ${HOTEL_PUBLIC_BASE_URL:http://localhost:8080}
+  frontend-base-url: ${HOTEL_FRONTEND_BASE_URL:http://localhost:5173}

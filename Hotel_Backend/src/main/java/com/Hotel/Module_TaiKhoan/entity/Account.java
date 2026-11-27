@@ -10,9 +10,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "account")
+@Table(name = "account", uniqueConstraints = @UniqueConstraint(name = "uq_account_google_sub", columnNames = "google_sub"))
 public class Account {
 
     @Id
@@ -39,6 +40,9 @@ public class Account {
 
     @Column(name = "auth_provider", nullable = false, length = 20)
     private String authProvider = "LOCAL"; // LOCAL hoặc GOOGLE
+
+    @Column(name = "google_sub")
+    private String googleSubject;
 
     @Column(name = "vai_tro", nullable = false, length = 20)
     private String vaiTro; // VD: ROLE_USER, ROLE_ADMIN, ROLE_RECEPTIONIST
@@ -82,6 +86,9 @@ public class Account {
 
     public String getAuthProvider() { return authProvider; }
     public void setAuthProvider(String authProvider) { this.authProvider = authProvider; }
+
+    public String getGoogleSubject() { return googleSubject; }
+    public void setGoogleSubject(String googleSubject) { this.googleSubject = googleSubject; }
 
     public String getVaiTro() { return vaiTro; }
     public void setVaiTro(String vaiTro) { this.vaiTro = vaiTro; }

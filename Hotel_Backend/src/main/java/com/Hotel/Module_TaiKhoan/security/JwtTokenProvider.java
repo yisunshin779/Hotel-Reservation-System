@@ -1,84 +1,60 @@
 package com.Hotel.Module_TaiKhoan.security;
 
-import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
+
+import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 
 @Component
 public class JwtTokenProvider {
+    private final SecretKey key;
+    private final JwtParser parser;
+    private final long expirationMs;
 
-    // Khóa bí mật dùng để ký JWT (Trong thực tế nên để ở file application.yml)
-    @Value("${app.jwtSecret:MotChuoiBaoMatCucKyDaiVaPhucTapChoHeThongKhachSanCuaBan123456789}")
-    private String jwtSecret;
-
-    // Thời gian sống của Token (VD: 86400000 ms = 24 giờ)
-    @Value("${app.jwtExpirationMs:86400000}")
-    private int jwtExpirationMs;
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    public JwtTokenProvider(@Value("${app.jwt-secret}") String secret,
+                            @Value("${app.jwt-expiration-ms:86400000}") long expirationMs) {
+        if (secret.isBlank() || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException("HOTEL_JWT_SECRET must be at least 32 UTF-8 bytes");
+        }
+        if (expirationMs <= 0) {
+            throw new IllegalArgumentException("JWT expiration must be positive");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.parser = Jwts.parserBuilder().setSigningKey(key).build();
+        this.expirationMs = expirationMs;
     }
 
-    // 1. Hàm tạo Token khi đăng nhập thành công
-    public String generateToken(String email, String role) {
+    public String generateToken(UUID accountId, String email, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
-
         return Jwts.builder()
-                .setSubject(email) // Lưu email làm định danh chính
-                .claim("role", role) // Nhét thêm Vai trò để Frontend phân quyền UI
+                .setSubject(email)
+                .claim("account_id", accountId.toString())
+                .claim("role", role)
                 .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .setExpiration(new Date(now.getTime() + expirationMs))
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // 2. Hàm lấy Email ngược lại từ Token (dùng khi kiểm duyệt Request)
-    public String getEmailFromJwt(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
-    }
-
-    // 3. Bổ sung hàm validateToken vào cuối file:
-    public boolean validateToken(String authToken) {
-        try {
-            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(authToken);
-            return true;
-        } catch (SignatureException ex) {
-            System.out.println("Chữ ký JWT không hợp lệ");
-        } catch (MalformedJwtException ex) {
-            System.out.println("Token JWT bị hỏng, sai định dạng");
-        } catch (ExpiredJwtException ex) {
-            System.out.println("Token JWT đã hết hạn");
-        } catch (UnsupportedJwtException ex) {
-            System.out.println("Token JWT không được hỗ trợ");
-        } catch (IllegalArgumentException ex) {
-            System.out.println("Chuỗi claims của JWT trống");
+    public UUID readAccountId(String token) {
+        var signed = parser.parseClaimsJws(token);
+        var claims = signed.getBody();
+        String accountId = claims.get("account_id", String.class);
+        if (!"HS256".equals(signed.getHeader().getAlgorithm())
+                || claims.getExpiration() == null || claims.getSubject() == null
+                || claims.getSubject().isBlank() || accountId == null) {
+            throw new JwtException("Missing or invalid JWT claims");
         }
-        return false;
-    }
-
-    public String getRoleFromJwt(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.get("role", String.class);
+        return UUID.fromString(accountId);
     }
 }

@@ -21,8 +21,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            "AND r.trangThai IN ('PENDING_PAYMENT', 'CONFIRMED', 'CHECKED_IN') " +
            "AND r.ngayNhan < :ngayTra AND r.ngayTra > :ngayNhan")
     int countOccupiedRooms(
-        @Param("maLoai") String maLoai, 
-        @Param("ngayNhan") LocalDate ngayNhan, 
+        @Param("maLoai") String maLoai,
+        @Param("ngayNhan") LocalDate ngayNhan,
         @Param("ngayTra") LocalDate ngayTra
     );
 

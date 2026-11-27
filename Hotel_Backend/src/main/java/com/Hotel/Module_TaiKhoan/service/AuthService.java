@@ -2,9 +2,10 @@ package com.Hotel.Module_TaiKhoan.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,9 +91,10 @@ public class AuthService {
     
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCK_DURATION_MINUTES = 15;
+    @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public AuthResponseDTO login(LoginRequestDTO request) {
         // 1. Tìm tài khoản bằng Email
-        Account account = accountRepository.findByEmail(request.getEmail())
+        Account account = accountRepository.lockByEmail(request.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Thông tin đăng nhập không đúng"));
 
         // 2. Kiểm tra trạng thái xác thực và khóa vĩnh viễn từ Admin
@@ -152,7 +154,7 @@ public class AuthService {
         }
 
         // 6. Sinh JWT và trả về
-        String token = jwtTokenProvider.generateToken(account.getEmail(), account.getVaiTro());
+        String token = jwtTokenProvider.generateToken(account.getId(), account.getEmail(), account.getVaiTro());
         return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
     }
     
@@ -162,13 +164,20 @@ public class AuthService {
         VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Mã xác thực không tồn tại hoặc không hợp lệ."));
 
+        if (!"VERIFY_EMAIL".equals(verificationToken.getLoaiToken())) {
+            throw new IllegalArgumentException("Loại token không hợp lệ cho thao tác xác thực email.");
+        }
+
         // 2. Kiểm tra thời hạn của token
         if (verificationToken.getNgayHetHan().isBefore(java.time.LocalDateTime.now())) {
             throw new IllegalStateException("Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại.");
         }
 
         // 3. Kích hoạt tài khoản
-        Account account = verificationToken.getAccount();
+        Account account = accountRepository.lockById(verificationToken.getAccount().getId()).orElseThrow();
+        if (!"CHO_XAC_THUC".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản không ở trạng thái chờ xác thực.");
+        }
         account.setTrangThai("DA_KICH_HOAT");
         accountRepository.save(account);
 
@@ -219,7 +228,10 @@ public class AuthService {
             throw new IllegalStateException("Mã đặt lại mật khẩu đã hết hạn. Vui lòng gửi lại yêu cầu.");
         }
 
-        Account account = resetToken.getAccount();
+        Account account = accountRepository.lockById(resetToken.getAccount().getId()).orElseThrow();
+        if ("BI_KHOA".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
+        }
         account.setMatKhau(passwordEncoder.encode(request.getMatKhauMoi()));
         // Mở khóa Brute-force nếu tài khoản đang bị khóa tạm thời
         account.setSoLanDangNhapSai(0);
@@ -230,69 +242,106 @@ public class AuthService {
         verificationTokenRepository.delete(resetToken);
     }
 
-    // ... Khai báo thêm biến cấu hình bên trong class AuthService ...
     @Value("${google.client-id}")
     private String googleClientId;
+    private GoogleIdTokenVerifier googleVerifier;
+
+    @jakarta.annotation.PostConstruct
+    void configureGoogleVerifier() {
+        if (googleClientId.isBlank()) {
+            return;
+        }
+        if (!googleClientId.matches("[a-zA-Z0-9-]+\\.apps\\.googleusercontent\\.com")) {
+            throw new IllegalArgumentException("HOTEL_GOOGLE_CLIENT_ID is not a Google OAuth client ID");
+        }
+        googleVerifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                .setAudience(java.util.List.of(googleClientId))
+                .build();
+    }
 
     @Transactional
     public AuthResponseDTO loginWithGoogle(String idTokenString) {
-        // 1. Khởi tạo bộ xác thực chữ ký số với Public Keys của Google
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-            new NetHttpTransport(),
-            GsonFactory.getDefaultInstance())
-            .setAudience(Collections.singletonList(googleClientId))
-            .build();
+        var payload = verifyGoogleToken(idTokenString);
+        Account account = accountRepository.findByGoogleSubject(payload.getSubject()).orElse(null);
+        if (account == null) {
+            String email = payload.getEmail();
+            if (!Boolean.TRUE.equals(payload.getEmailVerified()) || email == null || email.isBlank()) {
+                throw new IllegalArgumentException("Tài khoản Google cần email đã xác minh.");
+            }
+            email = email.toLowerCase(Locale.ROOT);
+            if (accountRepository.existsByEmailIgnoreCase(email)) {
+                throw new IllegalStateException("Tài khoản đã tồn tại. Hãy đăng nhập nội bộ để liên kết Google hoặc liên hệ hỗ trợ.");
+            }
 
-        GoogleIdToken idToken;
-        try {
-            idToken = verifier.verify(idTokenString);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Không thể xác thực chữ ký Google Token.");
-        }
-
-        if (idToken == null) {
-            throw new IllegalArgumentException("Google Token không hợp lệ, sai Client ID hoặc đã hết hạn.");
-        }
-
-        // 2. Bóc tách dữ liệu đã được Google bảo chứng
-        GoogleIdToken.Payload payload = idToken.getPayload();
-        if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-            throw new IllegalStateException("Email Google của bạn chưa được xác minh.");
-        }
-
-        String email = payload.getEmail();
-        String name = (String) payload.get("name");
-        if (name == null || name.isBlank()) {
-            name = email.split("@")[0];
-        }
-
-        // 3. Tìm hoặc tạo mới tài khoản (Upsert / Account Linking)
-        String finalName = name;
-        Account account = accountRepository.findByEmail(email).orElseGet(() -> {
-            Account newAccount = new Account();
-            newAccount.setEmail(email);
-            newAccount.setHoTen(finalName);
-            newAccount.setMatKhau(null); // Không có mật khẩu nội bộ
-            newAccount.setAuthProvider("GOOGLE");
-            newAccount.setVaiTro("ROLE_USER");
-            newAccount.setTrangThai("DA_KICH_HOAT"); // Google đã xác thực email nên kích hoạt ngay
-            return accountRepository.save(newAccount);
-        });
-
-        // 4. Kiểm tra các rào cản trạng thái với tài khoản đã tồn tại
-        if ("BI_KHOA".equals(account.getTrangThai())) {
-            throw new IllegalStateException("Tài khoản đã bị quản trị viên khóa.");
-        }
-
-        // Nếu trước đó khách đăng ký tay nhưng chưa bấm link email, đăng nhập Google sẽ kích hoạt luôn
-        if ("CHO_XAC_THUC".equals(account.getTrangThai())) {
+            account = new Account();
+            Object name = payload.get("name");
+            account.setHoTen(name instanceof String text && !text.isBlank() ? text : email);
+            account.setEmail(email);
+            account.setAuthProvider("GOOGLE");
+            account.setVaiTro("ROLE_USER");
             account.setTrangThai("DA_KICH_HOAT");
-            accountRepository.save(account);
+            account.setGoogleSubject(payload.getSubject());
+            saveGoogleAccount(account);
         }
 
-        // 5. Cấp phát JWT nội bộ của hệ thống HRS
-        String token = jwtTokenProvider.generateToken(account.getEmail(), account.getVaiTro());
+        requireActive(account);
+        String token = jwtTokenProvider.generateToken(account.getId(), account.getEmail(), account.getVaiTro());
         return new AuthResponseDTO(token, account.getEmail(), account.getVaiTro());
+    }
 
+    @Transactional
+    public void linkGoogle(String accountEmail, String idTokenString) {
+        var payload = verifyGoogleToken(idTokenString);
+        Account account = accountRepository.lockByEmail(accountEmail)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy tài khoản."));
+        requireActive(account);
+
+        String subject = payload.getSubject();
+        if (subject.equals(account.getGoogleSubject())) {
+            return;
+        }
+        if (account.getGoogleSubject() != null || accountRepository.findByGoogleSubject(subject).isPresent()) {
+            throw new IllegalStateException("Liên kết Google đã tồn tại.");
+        }
+        account.setGoogleSubject(subject);
+        saveGoogleAccount(account);
+    }
+
+    private GoogleIdToken.Payload verifyGoogleToken(String idTokenString) {
+        if (googleVerifier == null) {
+            throw new IllegalStateException("Đăng nhập Google chưa được cấu hình.");
+        }
+
+        try {
+            GoogleIdToken idToken = googleVerifier.verify(idTokenString);
+            if (idToken != null) {
+                var payload = idToken.getPayload();
+                String issuer = payload.getIssuer();
+                if (("https://accounts.google.com".equals(issuer) || "accounts.google.com".equals(issuer))
+                        && payload.getExpirationTimeSeconds() != null
+                        && payload.getExpirationTimeSeconds() > java.time.Instant.now().getEpochSecond()
+                        && payload.getSubject() != null && !payload.getSubject().isBlank()
+                        && payload.getSubject().length() <= 255) {
+                    return payload;
+                }
+            }
+        } catch (java.io.IOException | java.security.GeneralSecurityException ex) {
+            throw new IllegalArgumentException("Không thể xác thực Google ID Token.");
+        }
+        throw new IllegalArgumentException("Google ID Token không hợp lệ hoặc đã hết hạn.");
+    }
+
+    private void saveGoogleAccount(Account account) {
+        try {
+            accountRepository.saveAndFlush(account);
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalStateException("Liên kết Google hoặc email đã được sử dụng.", ex);
+        }
+    }
+
+    private void requireActive(Account account) {
+        if (!"DA_KICH_HOAT".equals(account.getTrangThai())) {
+            throw new IllegalStateException("Tài khoản chưa được kích hoạt hoặc đã bị khóa.");
+        }
     }
 }

@@ -84,7 +84,7 @@ export default function RoomDetailPage() {
     (location.state as { search?: SearchParams } | null)?.search ??
     (saved ? (JSON.parse(saved) as SearchParams) : undefined)
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const [tomorrow] = useState(() => new Date(Date.now() + 86400000).toISOString().slice(0, 10))
   const [p, setP] = useState<SearchParams>(
     preset ?? { branchId: '', checkIn: today(), checkOut: tomorrow, adults: 2, children: 0, rooms: 1 }
   )
